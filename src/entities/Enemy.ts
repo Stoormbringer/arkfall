@@ -21,6 +21,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   phase: Phase = 'chase';
   phaseUntil = 0;
   firstHitAt: number | null = null; // для TTK
+  hitsTaken = 0;
   private strikeAngle = 0;
   private struck = false;
   private tele: Phaser.GameObjects.Graphics;
@@ -47,6 +48,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   takeDamage(amount: number, knockFrom: Phaser.Math.Vector2, knockback: number): boolean {
     const now = this.scene.time.now;
     if (this.firstHitAt === null) this.firstHitAt = now;
+    this.hitsTaken++;
     this.hp -= amount;
     const dir = new Phaser.Math.Vector2(this.x, this.y).subtract(knockFrom).normalize();
     const kb = this.def.role === 'tank' ? knockback * 0.25 : knockback;

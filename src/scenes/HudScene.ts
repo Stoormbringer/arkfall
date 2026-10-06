@@ -1,6 +1,16 @@
 import Phaser from 'phaser';
 import { ttkTarget } from '../core/formulas';
-import type { ArenaState } from './ArenaScene';
+import type { ArenaState, TtkSample } from './ArenaScene';
+import ENEMIES from '../data/enemies.json';
+
+const median = (xs: number[]) => {
+  if (!xs.length) return 0;
+  const s = [...xs].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+const fmtRole = (role: keyof typeof ENEMIES, xs: TtkSample[]) =>
+  xs.length ? `${ENEMIES[role].name} ${median(xs.map((x) => x.sec)).toFixed(2)} с / ${median(xs.map((x) => x.hits)).toFixed(0)} уд. (n=${xs.length})` : `${ENEMIES[role].name} —`;
 
 export class HudScene extends Phaser.Scene {
   private hpBar!: Phaser.GameObjects.Graphics;
@@ -31,12 +41,17 @@ export class HudScene extends Phaser.Scene {
 
     this.info.setText(`Тир ${s.tier} · Комната ${s.room} · Враги ${s.alive} · Убито ${s.kills}`);
 
-    const n = s.ttkSamples.length;
-    const avg = n ? s.ttkSamples.reduce((a, b) => a + b, 0) / n : 0;
-    const inBand = avg >= ttkTarget.min && avg <= ttkTarget.max;
+    const by = (r: TtkSample['role']) => s.ttkSamples.filter((x) => x.role === r);
+    const common = s.ttkSamples.filter((x) => x.role !== 'tank');
+    const med = median(common.map((x) => x.sec));
+    const tankMed = median(by('tank').map((x) => x.sec));
+    const band = (v: number, t: { min: number; max: number }, k: number) => (k ? (v >= t.min && v <= t.max ? '✓' : `✗ цель ${t.min}–${t.max}`) : '');
     this.debug.setText([
       `сид ${s.seed}`,
-      `TTK средн. ${avg.toFixed(2)} с (n=${n}) ${n ? (inBand ? '✓ в коридоре' : '✗ вне 0,6–1,5') : ''}`,
+      `TTK обычных ${med.toFixed(2)} с (n=${common.length}) ${band(med, ttkTarget.common, common.length)} · танк ${band(tankMed, ttkTarget.tank, by('tank').length)}`,
+      fmtRole('rusher', by('rusher')),
+      fmtRole('shooter', by('shooter')),
+      fmtRole('tank', by('tank')),
     ]);
 
     if (s.dead) this.banner.setText(`Убит: ${s.killer}\n\nR — новый забег`);

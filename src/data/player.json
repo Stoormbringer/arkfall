@@ -2,15 +2,20 @@
   "hp": 100,
   "speed": 240,
   "radius": 12,
-  "dodge": { "speed": 560, "durationSec": 0.18, "iframesSec": 0.25, "cooldownSec": 0.6 },
+  "dodge": {
+    "speed": 560,
+    "durationSec": 0.18,
+    "iframesSec": 0.25,
+    "cooldownSec": 0.6
+  },
   "weapon": {
     "id": "arc_blade",
     "name": "Дуговой клинок",
-    "damage": 22,
+    "damage": 30,
     "radius": 72,
     "arcDeg": 100,
-    "cooldownSec": 0.35,
-    "knockback": 180
+    "cooldownSec": 0.3,
+    "knockback": 70
   },
   "spawnInvulnSec": 1.0
 }

@@ -8,12 +8,14 @@ import { Enemy } from '../entities/Enemy';
 import { Player } from '../entities/Player';
 import { Projectile } from '../entities/Projectile';
 
+export interface TtkSample { role: EnemyId; sec: number; hits: number }
+
 export interface ArenaState {
   tier: number;
   room: number;
   seed: number;
   kills: number;
-  ttkSamples: number[];
+  ttkSamples: TtkSample[];
   alive: number;
   cleared: boolean;
   dead: boolean;
@@ -129,7 +131,7 @@ export class ArenaScene extends Phaser.Scene {
       const killed = e.takeDamage(s.damage, c, s.knockback);
       if (killed) {
         this.state.kills++;
-        if (e.firstHitAt !== null) this.state.ttkSamples.push((this.time.now - e.firstHitAt) / 1000);
+        if (e.firstHitAt !== null) this.state.ttkSamples.push({ role: e.id, sec: (this.time.now - e.firstHitAt) / 1000, hits: e.hitsTaken });
       }
     }
   }

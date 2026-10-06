@@ -33,6 +33,7 @@ export class ArenaScene extends Phaser.Scene {
   private rng!: Rng;
   private keys!: Record<'W' | 'A' | 'S' | 'D' | 'UP' | 'LEFT' | 'DOWN' | 'RIGHT' | 'SPACE' | 'SHIFT' | 'R', Phaser.Input.Keyboard.Key>;
   private advancing = false;
+  private pendingSpawns = 0;
 
   constructor() { super('arena'); }
 
@@ -48,6 +49,7 @@ export class ArenaScene extends Phaser.Scene {
     };
     this.rng = new Rng(this.state.seed * 31 + this.state.room);
     this.advancing = false;
+    this.pendingSpawns = 0;
   }
 
   create() {
@@ -104,7 +106,7 @@ export class ArenaScene extends Phaser.Scene {
     for (const e of this.enemies.getChildren() as Enemy[]) e.update(ctx);
 
     this.state.alive = this.enemies.countActive(true);
-    if (this.state.alive === 0 && !this.advancing) this.onRoomCleared();
+    if (this.state.alive === 0 && this.pendingSpawns === 0 && !this.advancing) this.onRoomCleared();
     this.emitState();
   }
 
@@ -153,7 +155,9 @@ export class ArenaScene extends Phaser.Scene {
       if (id === 'shooter' && ranged >= maxRanged) id = 'rusher';
       if (id === 'shooter') ranged++;
       const pos = this.spawnPoint(center);
+      this.pendingSpawns++;
       this.telegraphSpawn(pos, () => {
+        this.pendingSpawns--;
         const def = ENEMIES[id] as EnemyDef;
         this.enemies.add(new Enemy(this, pos.x, pos.y, id, def, this.state.tier, this.state.room));
       });
@@ -179,7 +183,7 @@ export class ArenaScene extends Phaser.Scene {
     const ring = this.add.circle(p.x, p.y, 4, 0x8fd3ff, 0).setStrokeStyle(2, 0x8fd3ff, 0.9).setDepth(4);
     this.tweens.add({ targets: ring, radius: 26, duration: ROOM.spawnTelegraphSec * 1000, ease: 'Quad.Out',
       onUpdate: () => ring.setRadius(ring.radius),
-      onComplete: () => { ring.destroy(); if (!this.state.dead) onDone(); } });
+      onComplete: () => { ring.destroy(); onDone(); } });
   }
 
   private onRoomCleared() {

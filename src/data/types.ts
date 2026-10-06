@@ -16,3 +16,28 @@ export interface EnemyDef {
 }
 
 export type EnemyId = 'rusher' | 'shooter' | 'tank';
+
+export type SkillCategory = 'melee' | 'ranged' | 'magic' | 'summon' | 'control' | 'defense' | 'mobility';
+export type UpgradeSlot = 'damage' | 'cooldown' | 'area' | 'duration' | 'projectiles' | 'charges' | 'unique';
+
+export interface SkillDef {
+  name: string;
+  category: SkillCategory;
+  type: 'active' | 'passive';
+  resource: { kind: 'cooldown'; cooldownSec: number } | { kind: 'charges'; charges: number; rechargeSec: number } | { kind: 'none' };
+  base: Record<string, number | boolean>;
+  upgradeSlots: UpgradeSlot[];
+  unique: { name: string; effect: string };
+  synergies: string[];
+  counters: string[];
+  offerFrom: number;
+}
+
+export type FacetRarity = 'common' | 'rare' | 'epic';
+export interface FacetDef {
+  name: string;
+  rarity: FacetRarity;
+  binds: string | null;
+  effect: string;
+  params: Record<string, number | boolean>;
+}

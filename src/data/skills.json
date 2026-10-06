@@ -1,0 +1,103 @@
+{
+  "_comment": "GDD §C. Основные скиллы MVP. upgrades: общие слоты задаются схемой в formulas.json/upgradeSlots, уникальный — здесь.",
+  "dash_cut": {
+    "name": "Рывок-разрез", "category": "mobility", "type": "active",
+    "resource": { "kind": "charges", "charges": 2, "rechargeSec": 4 },
+    "base": { "damage": 35, "length": 220, "iframesSec": 0.2 },
+    "upgradeSlots": ["damage", "cooldown", "area", "charges"],
+    "unique": { "name": "Разрез до кости", "effect": "Враги на линии рывка получают кровотечение 3 с (4 урона / с)" },
+    "synergies": ["blood_rhythm", "riposte", "shard_shot"],
+    "counters": ["tank_slam_after_dash", "narrow_rooms"],
+    "offerFrom": 10
+  },
+  "shard_shot": {
+    "name": "Осколочный выстрел", "category": "ranged", "type": "active",
+    "resource": { "kind": "cooldown", "cooldownSec": 1.2 },
+    "base": { "damage": 24, "shards": 3, "shardDamage": 12, "spreadDeg": 30, "speed": 420 },
+    "upgradeSlots": ["damage", "cooldown", "area", "projectiles"],
+    "unique": { "name": "Зазубрины", "effect": "Осколки пробивают одного врага" },
+    "synergies": ["gravity_well", "spark", "dash_cut"],
+    "counters": ["elite_shield", "elite_mirror"],
+    "offerFrom": 10
+  },
+  "gravity_well": {
+    "name": "Гравитационный колодец", "category": "control", "type": "active",
+    "resource": { "kind": "cooldown", "cooldownSec": 8 },
+    "base": { "radius": 160, "durationSec": 2, "pullsProjectiles": true },
+    "upgradeSlots": ["cooldown", "area", "duration"],
+    "unique": { "name": "Сингулярность", "effect": "Стянутые враги получают +20 % урона 2 с после тяги" },
+    "synergies": ["spike_ground", "echo_strike", "shard_shot", "spark"],
+    "counters": ["heavy_immune_to_pull"],
+    "offerFrom": 10
+  },
+  "riposte": {
+    "name": "Жало ответа", "category": "defense", "type": "passive",
+    "resource": { "kind": "none" },
+    "base": { "windowSec": 1.5, "damageMult": 2, "areaMult": 1.5 },
+    "upgradeSlots": ["damage", "area", "duration"],
+    "unique": { "name": "Контрритм", "effect": "Парирование даёт 2 стака Ритма" },
+    "synergies": ["dash_cut", "echo_strike", "barrier"],
+    "counters": ["ranged_keep_distance"],
+    "offerFrom": 10
+  },
+  "phantom_blade": {
+    "name": "Призрачный клинок", "category": "summon", "type": "active",
+    "resource": { "kind": "cooldown", "cooldownSec": 15 },
+    "base": { "damage": 12, "attackSec": 0.8, "durationSec": 10, "inheritWeaponBonus": 0.5 },
+    "upgradeSlots": ["damage", "cooldown", "duration", "projectiles"],
+    "unique": { "name": "Отзвук", "effect": "Клинок повторяет Эхо-удар игрока с 30 % урона" },
+    "synergies": ["blood_rhythm", "spark", "spike_ground"],
+    "counters": ["boss_aoe_kills_summon"],
+    "offerFrom": 20
+  },
+  "spark": {
+    "name": "Разряд", "category": "magic", "type": "active",
+    "resource": { "kind": "cooldown", "cooldownSec": 5 },
+    "base": { "damage": 30, "jumps": 3, "falloff": 0.2, "jumpRange": 180 },
+    "upgradeSlots": ["damage", "cooldown", "area", "projectiles"],
+    "unique": { "name": "Статика", "effect": "Цели цепи замедлены на 20 % на 1,5 с" },
+    "synergies": ["gravity_well", "shard_shot", "phantom_blade"],
+    "counters": ["spread_enemies", "elite_resist_t20"],
+    "offerFrom": 10
+  },
+  "blood_rhythm": {
+    "name": "Кровавый ритм", "category": "melee", "type": "passive",
+    "resource": { "kind": "none" },
+    "base": { "attackSpeedPerStack": 0.08, "maxStacks": 5, "decaySec": 1 },
+    "upgradeSlots": ["damage", "duration", "charges"],
+    "unique": { "name": "Пульс", "effect": "На 5 стаках удары лечат 1 HP" },
+    "synergies": ["dash_cut", "echo_strike", "phantom_blade"],
+    "counters": ["ranged_retreat_breaks_rhythm"],
+    "offerFrom": 10
+  },
+  "barrier": {
+    "name": "Барьер-кольцо", "category": "defense", "type": "active",
+    "resource": { "kind": "cooldown", "cooldownSec": 12 },
+    "base": { "absorb": 40, "burstDamage": 30, "burstRadius": 90 },
+    "upgradeSlots": ["damage", "cooldown", "area", "duration"],
+    "unique": { "name": "Отражение", "effect": "Снаряды, попавшие в барьер, летят обратно" },
+    "synergies": ["riposte", "gravity_well", "spike_ground"],
+    "counters": ["many_weak_hits"],
+    "offerFrom": 20
+  },
+  "spike_ground": {
+    "name": "Шипастая земля", "category": "magic", "type": "active",
+    "resource": { "kind": "cooldown", "cooldownSec": 9 },
+    "base": { "damage": 10, "tickSec": 0.5, "slow": 0.3, "radius": 120, "durationSec": 4 },
+    "upgradeSlots": ["damage", "cooldown", "area", "duration"],
+    "unique": { "name": "Терновник", "effect": "Зона следует за игроком" },
+    "synergies": ["gravity_well", "barrier", "phantom_blade"],
+    "counters": ["jumpers_flyers"],
+    "offerFrom": 10
+  },
+  "echo_strike": {
+    "name": "Эхо-удар", "category": "melee", "type": "active",
+    "resource": { "kind": "cooldown", "cooldownSec": 6 },
+    "base": { "damage": 60, "windupSec": 0.5, "stunSec": 1, "rhythmBonusPerStack": 0.1, "consumesRhythm": true },
+    "upgradeSlots": ["damage", "cooldown", "area", "duration"],
+    "unique": { "name": "Двойное эхо", "effect": "Через 0,5 с удар повторяется с 40 % урона" },
+    "synergies": ["blood_rhythm", "riposte", "gravity_well"],
+    "counters": ["dodging_enemies_t6"],
+    "offerFrom": 20
+  }
+}

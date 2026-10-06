@@ -56,5 +56,76 @@
       "min": 2.5,
       "max": 4.0
     }
+  },
+  "upgradeSlots": {
+    "damage": [
+      0.08,
+      0.06,
+      0.05,
+      0.04,
+      0.03
+    ],
+    "cooldown": [
+      -0.06,
+      -0.05,
+      -0.04,
+      -0.03,
+      -0.02
+    ],
+    "area": [
+      0.07,
+      0.06,
+      0.05,
+      0.04,
+      0.03
+    ],
+    "duration": [
+      0.1,
+      0.08,
+      0.06,
+      0.04,
+      0.02
+    ],
+    "projectiles": [
+      1,
+      1
+    ],
+    "charges": [
+      1,
+      1
+    ],
+    "unique": [
+      0,
+      0,
+      1
+    ]
+  },
+  "facetOffer": {
+    "bound": 2,
+    "wild": 1,
+    "rarityWeights": {
+      "common": 60,
+      "rare": 30,
+      "epic": 10
+    },
+    "epicFromRank": 4,
+    "rerollsPerAct": 1,
+    "banishesPerAct": 1
+  },
+  "milestones": {
+    "skillLevels": [
+      10,
+      20,
+      30,
+      40,
+      50,
+      60,
+      70,
+      80,
+      90,
+      100
+    ],
+    "offerCount": 3,
+    "missingCategoryWeight": 2
   }
 }

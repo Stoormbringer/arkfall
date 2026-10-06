@@ -7,7 +7,14 @@
     "hp": 40,
     "dmg": 12,
     "speed": 170,
-    "attack": { "kind": "lunge", "range": 120, "windupSec": 0.6, "lungeSpeed": 620, "lungeSec": 0.22, "recoverSec": 0.5 },
+    "attack": {
+      "kind": "lunge",
+      "range": 120,
+      "windupSec": 0.6,
+      "lungeSpeed": 620,
+      "lungeSec": 0.22,
+      "recoverSec": 0.5
+    },
     "xpWeight": 1
   },
   "shooter": {
@@ -18,7 +25,14 @@
     "hp": 30,
     "dmg": 10,
     "speed": 130,
-    "attack": { "kind": "shoot", "range": 420, "keepDistance": 240, "windupSec": 0.6, "projectileSpeed": 320, "recoverSec": 0.9 },
+    "attack": {
+      "kind": "shoot",
+      "range": 420,
+      "keepDistance": 240,
+      "windupSec": 0.6,
+      "projectileSpeed": 320,
+      "recoverSec": 0.9
+    },
     "xpWeight": 1
   },
   "tank": {
@@ -29,7 +43,37 @@
     "hp": 140,
     "dmg": 28,
     "speed": 85,
-    "attack": { "kind": "slam", "range": 90, "aoeRadius": 95, "windupSec": 0.85, "recoverSec": 1.1 },
+    "attack": {
+      "kind": "slam",
+      "range": 90,
+      "aoeRadius": 95,
+      "windupSec": 0.85,
+      "recoverSec": 1.1
+    },
     "xpWeight": 2
+  },
+  "boss_hammer": {
+    "name": "Молот Ковчега",
+    "role": "tank",
+    "color": "0xe0a62f",
+    "radius": 36,
+    "hp": 900,
+    "dmg": 30,
+    "speed": 95,
+    "attack": {
+      "kind": "slam",
+      "range": 120,
+      "aoeRadius": 140,
+      "windupSec": 0.9,
+      "recoverSec": 1.0
+    },
+    "xpWeight": 40,
+    "boss": {
+      "phase2At": 0.5,
+      "phase2WindupMult": 0.75,
+      "phase2Adds": 2,
+      "phase2RingBullets": 8,
+      "phase2RingSpeed": 260
+    }
   }
 }

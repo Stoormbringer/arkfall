@@ -8,6 +8,7 @@ export interface EnemyContext {
   player: Phaser.Physics.Arcade.Sprite;
   shoot: (x: number, y: number, angle: number, speed: number, dmg: number, source: string) => void;
   hitPlayer: (dmg: number, source: string) => void;
+  spawnAdd?: (x: number, y: number, id: 'rusher' | 'shooter') => void;
 }
 
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
@@ -17,7 +18,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   readonly maxHp: number;
   readonly dmg: number;
   readonly speed: number;
-  readonly windupMs: number;
+  windupMs: number;
+  readonly isBoss: boolean;
   phase: Phase = 'chase';
   phaseUntil = 0;
   firstHitAt: number | null = null; // для TTK
@@ -42,6 +44,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.dmg = Math.round(enemyDmg(def.dmg, tier, room));
     this.speed = enemySpd(def.speed, tier);
     this.windupMs = telegraphSec(def.attack.windupSec, tier) * 1000;
+    this.isBoss = !!def.boss;
     this.tele = scene.add.graphics().setDepth(5);
     this.hpBar = scene.add.graphics().setDepth(12);
   }
@@ -137,7 +140,11 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.struck = false;
   }
 
+  /** Хук для боссов: вызывается в момент удара */
+  protected onStrike(_ctx: EnemyContext) { void _ctx; }
+
   private beginStrike(now: number, ctx: EnemyContext) {
+    this.onStrike(ctx);
     this.tele.clear();
     const atk = this.def.attack;
     const me = this.getCenter();

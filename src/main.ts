@@ -5,6 +5,8 @@ import { BootScene } from './scenes/BootScene';
 import { HudScene } from './scenes/HudScene';
 import { FacetScene } from './scenes/FacetScene';
 import { PauseScene } from './scenes/PauseScene';
+import { TitleScene } from './scenes/TitleScene';
+import { SummaryScene } from './scenes/SummaryScene';
 
 const g = globalThis as unknown as { __arkfallError?: string };
 window.addEventListener('error', (e) => { g.__arkfallError = `${e.message} @ ${e.filename?.split('/').pop()}:${e.lineno}`; });
@@ -19,5 +21,5 @@ new Phaser.Game({
   pixelArt: false,
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   physics: { default: 'arcade', arcade: { debug: new URLSearchParams(location.search).has('debug') } },
-  scene: [BootScene, ArenaScene, HudScene, FacetScene, PauseScene],
+  scene: [BootScene, TitleScene, ArenaScene, HudScene, FacetScene, PauseScene, SummaryScene],
 });

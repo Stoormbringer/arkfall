@@ -27,7 +27,9 @@ export class BootScene extends Phaser.Scene {
     g.generateTexture('floor', 64, 64);
 
     g.destroy();
-    this.scene.start('arena');
-    this.scene.launch('hud');
+    // Прямой вход по ?tier=/?seed= — для тестов и быстрой проверки; иначе хаб
+    const q = new URLSearchParams(location.search);
+    if (q.has('tier') || q.has('seed')) this.scene.start('arena');
+    else this.scene.start('title');
   }
 }

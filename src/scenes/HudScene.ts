@@ -21,6 +21,7 @@ export class HudScene extends Phaser.Scene {
   private facetsText!: Phaser.GameObjects.Text;
   private debug!: Phaser.GameObjects.Text;
   private banner!: Phaser.GameObjects.Text;
+  private bossText!: Phaser.GameObjects.Text;
 
   constructor() { super('hud'); }
 
@@ -31,8 +32,9 @@ export class HudScene extends Phaser.Scene {
     this.skillsText = this.add.text(24, 72, '', { ...style, color: '#c9d1e0' });
     this.facetsText = this.add.text(24, 696, '', { ...style, fontSize: '12px', color: '#9aa4b8' }).setOrigin(0, 1);
     this.debug = this.add.text(1256, 24, '', { ...style, color: '#9aa4b8', align: 'right' }).setOrigin(1, 0);
+    this.bossText = this.add.text(640, 652, '', { ...style, fontSize: '13px', color: '#e0a62f' }).setOrigin(0.5, 1);
     this.banner = this.add.text(640, 330, '', { ...style, fontSize: '28px', align: 'center' }).setOrigin(0.5);
-    this.add.text(640, 696, 'WASD — движение · ЛКМ — удар · ПКМ — рывок · Q — разряд · Space — уклонение · Esc/P — пауза · R — заново', { ...style, color: '#6f7890', fontSize: '12px' }).setOrigin(0.5, 1);
+    this.add.text(640, 696, 'WASD — движение · ЛКМ — удар · ПКМ — рывок · Q — разряд · Space — уклонение · Esc/P — пауза', { ...style, color: '#6f7890', fontSize: '12px' }).setOrigin(0.5, 1);
     this.game.events.on('arena-state', (s: ArenaSnapshot) => this.render(s));
   }
 
@@ -52,7 +54,12 @@ export class HudScene extends Phaser.Scene {
     g.fillStyle(0x000000, 0.55).fillRect(510, 24, 260, 10);
     g.fillStyle(0xf0c75e, 1).fillRect(510, 24, 260 * Math.min(1, s.shards / s.nextRankAt), 10);
 
-    this.info.setText(`Тир ${s.tier} · Комната ${s.room} · Враги ${s.alive} · Убито ${s.kills}      Ранг ${s.rank}  ${Math.floor(s.shards)}/${Math.ceil(s.nextRankAt)} осколков`);
+    if (s.boss) {
+      g.fillStyle(0x000000, 0.6).fillRect(340, 660, 600, 14);
+      g.fillStyle(0xe0a62f, 1).fillRect(340, 660, 600 * Math.max(0, s.boss.hp01), 14);
+    }
+    this.bossText.setText(s.boss ? `${s.boss.name} · фаза ${s.boss.phase}` : '');
+    this.info.setText(`Тир ${s.tier} · Акт ${s.act}/${s.acts} · Комната ${s.roomInAct}/${s.roomsPerAct} · Враги ${s.alive} · Убито ${s.kills}      Ранг ${s.rank}  ${Math.floor(s.shards)}/${Math.ceil(s.nextRankAt)} осколков`);
     const sk = s.skills.map((v) => `${v.key} ${v.name} ${v.charges !== undefined ? '●'.repeat(v.charges) + '○'.repeat((v.maxCharges ?? 0) - v.charges) : v.ready01 >= 1 ? '✓' : Math.round(v.ready01 * 100) + '%'}`);
     if (s.rhythm > 0 || s.skills.length) sk.push(`Ритм ${'|'.repeat(s.rhythm)}${'.'.repeat(5 - s.rhythm)}`);
     this.skillsText.setText(sk.join('    '));
@@ -73,7 +80,7 @@ export class HudScene extends Phaser.Scene {
     else this.banner.setColor('#e8e4d8');
     if (s.lastError) return;
     if (s.paused) this.banner.setText('Пауза\n\nEsc / P — продолжить');
-    else if (s.dead) this.banner.setText(`Убит: ${s.killer}\n\nR — новый забег`);
+    else if (s.dead) this.banner.setText('');
     else if (s.cleared) this.banner.setText('Комната пройдена');
     else this.banner.setText('');
   }

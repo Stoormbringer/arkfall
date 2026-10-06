@@ -6,6 +6,8 @@ import type { EnemyDef, EnemyId } from '../data/types';
 import { enemyCount } from '../core/formulas';
 import { Rng } from '../core/rng';
 import { Enemy } from '../entities/Enemy';
+import { Boss } from '../entities/Boss';
+import { loadProgress, recordRun } from '../meta/Progress';
 import { Player } from '../entities/Player';
 import { Projectile } from '../entities/Projectile';
 import { RunState } from '../run/RunState';
@@ -13,6 +15,8 @@ import { offerFacets } from '../run/facetOffer';
 import { DashCut, MVP_SKILLS, Spark, type Battlefield, type Skill, type SkillView } from '../skills/skills';
 
 export interface ArenaSnapshot {
+  act: number; roomInAct: number; roomsPerAct: number; acts: number;
+  boss: { name: string; hp01: number; phase: number } | null;
   paused: boolean;
   lastError: string;
   tier: number; room: number; seed: number; kills: number; alive: number;
@@ -26,6 +30,7 @@ export interface ArenaSnapshot {
 interface Zone { x: number; y: number; r: number; until: number; nextTick: number; dps: number; tickSec: number; gfx: Phaser.GameObjects.Arc }
 
 const ROOM = ROOMS.arena;
+const RUN = ROOMS.run;
 
 export class ArenaScene extends Phaser.Scene {
   run!: RunState;
@@ -44,6 +49,8 @@ export class ArenaScene extends Phaser.Scene {
   private choosing = false;
   private currentOffer: string[] = [];
   private choosingSince = 0;
+  private boss: Boss | null = null;
+  private finished = false;
 
   constructor() { super('arena'); }
 
@@ -57,9 +64,14 @@ export class ArenaScene extends Phaser.Scene {
     this.rng = new Rng(this.run.seed * 31 + this.run.room);
     this.advancing = false; this.pendingSpawns = 0; this.cleared = false; this.dead = false; this.killer = ''; this.choosing = false;
     this.zones = [];
+    this.boss = null; this.finished = false;
   }
 
+  get isBossRoom() { return this.run.room % RUN.roomsPerAct === 0; }
+  get isLastRoom() { return this.run.room >= RUN.acts * RUN.roomsPerAct; }
+
   create() {
+    if (!this.scene.isActive('hud')) this.scene.launch('hud');
     const { width, height, wall } = ROOM;
     this.physics.world.setBounds(wall, wall, width - wall * 2, height - wall * 2);
     this.add.tileSprite(0, 0, width, height, 'floor').setOrigin(0).setDepth(0);
@@ -104,10 +116,7 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   update(_t: number, deltaMs: number) {
-    if (this.dead) {
-      if (Phaser.Input.Keyboard.JustDown(this.keys.R)) this.scene.restart({ run: new RunState(this.run.tier, this.run.seed + 1, MVP_SKILLS) });
-      return;
-    }
+    if (this.dead || this.finished) return;
     if (this.choosing) {
       // сторож: экран выбора потерялся — перезапускаем
       if (!this.scene.isActive('facet') && this.time.now - this.choosingSince > 600) {
@@ -143,6 +152,10 @@ export class ArenaScene extends Phaser.Scene {
       player: this.player,
       shoot: (x: number, y: number, a: number, sp: number, d: number, src: string) => (this.bullets.get(x, y) as Projectile | null)?.fire(x, y, a, sp, d, src),
       hitPlayer: (d: number, src: string) => this.hitPlayer(d, src),
+      spawnAdd: (x: number, y: number, id: 'rusher' | 'shooter') => {
+        this.pendingSpawns++;
+        this.telegraphSpawn(new Phaser.Math.Vector2(x, y), () => { this.pendingSpawns--; this.enemies.add(new Enemy(this, x, y, id, ENEMIES[id] as EnemyDef, this.run.tier, this.run.room)); });
+      },
     };
     for (const e of this.enemies.getChildren() as Enemy[]) e.update(ctx);
 
@@ -163,8 +176,9 @@ export class ArenaScene extends Phaser.Scene {
     if (!killed && this.run.mods.executeBelow > 0 && e.hp / e.maxHp < this.run.mods.executeBelow) { e.die(); killed = true; }
     if (killed) {
       this.run.kills++;
-      if (e.firstHitAt !== null) this.run.ttkSamples.push({ role: e.id, sec: (this.time.now - e.firstHitAt) / 1000, hits: e.hitsTaken });
-      this.run.addShards(F.shards.mob);
+      if (e.firstHitAt !== null && !e.isBoss) this.run.ttkSamples.push({ role: e.id, sec: (this.time.now - e.firstHitAt) / 1000, hits: e.hitsTaken });
+      this.run.addShards(e.isBoss ? F.shards.boss : F.shards.mob);
+      if (e.isBoss) this.boss = null;
       if (this.run.mods.healPerKill) this.player.heal(this.run.mods.healPerKill);
     }
     return killed;
@@ -199,6 +213,7 @@ export class ArenaScene extends Phaser.Scene {
       this.killer = source;
       this.player.setVelocity(0, 0);
       for (const e of this.enemies.getChildren() as Enemy[]) e.setVelocity(0, 0);
+      this.endRun(false);
     }
   }
 
@@ -226,6 +241,16 @@ export class ArenaScene extends Phaser.Scene {
   // ---------- волны и комнаты ----------
 
   private spawnWave() {
+    if (this.isBossRoom) {
+      const pos = new Phaser.Math.Vector2(ROOM.width / 2, ROOM.wall + 120);
+      this.pendingSpawns++;
+      this.telegraphSpawn(pos, () => {
+        this.pendingSpawns--;
+        this.boss = new Boss(this, pos.x, pos.y, 'boss_hammer', ENEMIES.boss_hammer as EnemyDef, this.run.tier, this.run.room);
+        this.enemies.add(this.boss);
+      });
+      return;
+    }
     const n = enemyCount(ROOM.baseCount, this.run.tier, this.run.room);
     const maxRanged = Math.floor(n * ROOM.maxRangedShare);
     let ranged = 0;
@@ -267,6 +292,7 @@ export class ArenaScene extends Phaser.Scene {
     this.advancing = true;
     this.cleared = true;
     this.run.hp = this.player.hp;
+    if (this.isLastRoom) { this.time.delayedCall(900, () => this.endRun(true)); return; }
     this.time.delayedCall(ROOM.clearDelaySec * 1000 * 0.5, () => this.nextStep());
   }
 
@@ -305,8 +331,20 @@ export class ArenaScene extends Phaser.Scene {
     this.time.delayedCall(150, () => this.nextStep());
   }
 
+  /** Конец забега: запись прогресса (GDD §9) и экран итогов */
+  private endRun(won: boolean) {
+    if (this.finished) return;
+    this.finished = true;
+    const before = loadProgress();
+    const after = recordRun(before, this.run.tier, this.run.room, won);
+    this.time.delayedCall(won ? 400 : 1200, () =>
+      this.scene.launch('summary', { run: this.run, won, killer: this.killer, progress: after, unlockedNew: after.unlockedTier > before.unlockedTier }));
+  }
+
   private emit(paused = false) {
     const snap: ArenaSnapshot = {
+      act: Math.ceil(this.run.room / RUN.roomsPerAct), roomInAct: ((this.run.room - 1) % RUN.roomsPerAct) + 1, roomsPerAct: RUN.roomsPerAct, acts: RUN.acts,
+      boss: this.boss && this.boss.active ? { name: this.boss.def.name, hp01: this.boss.hp / this.boss.maxHp, phase: this.boss.bossPhase } : null,
       paused, lastError: (globalThis as unknown as { __arkfallError?: string }).__arkfallError ?? '',
       tier: this.run.tier, room: this.run.room, seed: this.run.seed, kills: this.run.kills,
       alive: this.enemies.countActive(true), cleared: this.cleared, dead: this.dead, killer: this.killer,

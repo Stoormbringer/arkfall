@@ -4,9 +4,18 @@
     "height": 720,
     "wall": 32,
     "baseCount": 8,
-    "composition": { "rusher": 0.5, "shooter": 0.3, "tank": 0.2 },
+    "composition": {
+      "rusher": 0.5,
+      "shooter": 0.3,
+      "tank": 0.2
+    },
     "maxRangedShare": 0.4,
     "spawnTelegraphSec": 1.0,
     "clearDelaySec": 2.0
+  },
+  "run": {
+    "acts": 3,
+    "roomsPerAct": 10,
+    "bossRoomShards": 30
   }
 }

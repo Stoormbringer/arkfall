@@ -13,9 +13,10 @@ export interface EnemyDef {
   speed: number;
   attack: AttackDef;
   xpWeight: number;
+  boss?: { phase2At: number; phase2WindupMult: number; phase2Adds: number; phase2RingBullets: number; phase2RingSpeed: number };
 }
 
-export type EnemyId = 'rusher' | 'shooter' | 'tank';
+export type EnemyId = 'rusher' | 'shooter' | 'tank' | 'boss_hammer';
 
 export type SkillCategory = 'melee' | 'ranged' | 'magic' | 'summon' | 'control' | 'defense' | 'mobility';
 export type UpgradeSlot = 'damage' | 'cooldown' | 'area' | 'duration' | 'projectiles' | 'charges' | 'unique';

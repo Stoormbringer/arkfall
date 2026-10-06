@@ -19,8 +19,8 @@ function draw(rng: Rng, ids: string[], rank: number): string | null {
   return rng.pick<string>(weights);
 }
 
-/** GDD §C.4: 2 Грани, привязанные к скиллам игрока, + 1 дикая; без повторов; эпические с Ранга 4. */
-/** Стартовая Грань на 0-й секунде (GDD §2, шаг 2): 3 диких, без эпических */
+/** GDD §C.4: 2 Руны, привязанные к скиллам игрока, + 1 дикая; без повторов; эпические с Ранга 4. */
+/** Стартовая Руна на 0-й секунде (GDD §2, шаг 2): 3 диких, без эпических */
 export function offerStartFacets(rng: Rng): string[] {
   let wild = IMPLEMENTED_FACETS.filter((id) => facetDef(id).binds === null && facetDef(id).rarity !== 'epic');
   const out: string[] = [];

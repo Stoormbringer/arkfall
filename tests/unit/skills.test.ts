@@ -32,15 +32,15 @@ describe('правила каталога скиллов (GDD §C)', () => {
   });
 });
 
-describe('правила каталога Граней (GDD §C.4)', () => {
-  it('привязанные Грани ссылаются на существующие скиллы', () => {
+describe('правила каталога Рун (GDD §C.4)', () => {
+  it('привязанные Руны ссылаются на существующие скиллы', () => {
     for (const [id, f] of Object.entries(FACETS)) if (f.binds) expect(SKILLS[f.binds], id).toBeDefined();
   });
-  it('у каждого скилла ≥ 2 привязанные Грани', () => {
+  it('у каждого скилла ≥ 2 привязанные Руны', () => {
     for (const id of Object.keys(SKILLS))
       expect(Object.values(FACETS).filter((f) => f.binds === id).length, id).toBeGreaterThanOrEqual(2);
   });
-  it('диких Граней достаточно, чтобы третий слот не повторялся за акт', () => {
+  it('диких Рун достаточно, чтобы третий слот не повторялся за акт', () => {
     expect(Object.values(FACETS).filter((f) => f.binds === null).length).toBeGreaterThanOrEqual(8);
   });
   it('редкости распределены: обычных больше, чем редких, редких больше, чем эпических', () => {

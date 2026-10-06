@@ -13,7 +13,11 @@ export class RunState {
   shards = 0;
   rank = 0;
   pendingOffers = 0;
+  /** источники ожидающих выборов Руны — для заголовка экрана */
+  offerReasons: string[] = [];
   startOfferDone = false;
+  /** награда за выбранной дверью — применяется к следующей комнате */
+  nextDoor: 'shards' | 'heal' | 'facet' | 'elite' | 'boss' | null = null;
   rerollsLeft = F.facetOffer.rerollsPerAct;
   readonly skills: string[];
   readonly facets: string[] = [];
@@ -32,6 +36,7 @@ export class RunState {
       this.shards -= this.nextRankAt;
       this.rank++;
       this.pendingOffers++;
+      this.offerReasons.push(`Ранг ${this.rank}`);
     }
   }
 
@@ -39,7 +44,11 @@ export class RunState {
     this.facets.push(id);
     applyFacet(this.mods, id);
     this.pendingOffers = Math.max(0, this.pendingOffers - 1);
+    this.offerReasons.shift();
   }
+
+  /** Выбор Руны от награды места (Алтарь, Логово элиты) */
+  addOffer(reason: string) { this.pendingOffers++; this.offerReasons.push(reason); }
 
   /** Акт = 10 комнат: восстанавливает реролл */
   onRoomAdvance() {

@@ -1,7 +1,7 @@
 import FACETS from '../data/facets.json';
 import type { FacetDef } from '../data/types';
 
-/** Агрегированные эффекты взятых Граней. Скиллы и бой читают только этот объект. */
+/** Агрегированные эффекты взятых Рун. Скиллы и бой читают только этот объект. */
 export interface Mods {
   damageMult: number;
   cooldownMult: number;
@@ -30,7 +30,7 @@ export const defaultMods = (): Mods => ({
   rhythm: { decaySec: 1 },
 });
 
-/** Грани, у которых есть реализация в коде. Остальные не попадают в предложение. */
+/** Руны, у которых есть реализация в коде. Остальные не попадают в предложение. */
 export const IMPLEMENTED_FACETS = [
   'ash_trail', 'second_wind', 'overload', 'grounding', 'metronome',
   'reserve', 'shard_catcher', 'blood_on_blade', 'echo_of_pain', 'silence',

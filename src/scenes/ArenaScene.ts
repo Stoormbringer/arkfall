@@ -12,12 +12,14 @@ import { Player } from '../entities/Player';
 import { Projectile } from '../entities/Projectile';
 import { RunState } from '../run/RunState';
 import { offerFacets, offerStartFacets } from '../run/facetOffer';
+import { DOORS, ELITE_ROOM, HEAL_DOOR_HP, offerDoors, SHARDS_DOOR_BONUS, type DoorReward } from '../run/doors';
 import { assignKeys, Barrier, createSkill, type Battlefield, type Skill, type SkillView } from '../skills/skills';
 import { loadProgress as loadP } from '../meta/Progress';
 
 export interface ArenaSnapshot {
   act: number; roomInAct: number; roomsPerAct: number; acts: number;
   boss: { name: string; hp01: number; phase: number } | null;
+  roomTag: string;
   paused: boolean;
   lastError: string;
   tier: number; room: number; seed: number; kills: number; alive: number;
@@ -51,7 +53,10 @@ export class ArenaScene extends Phaser.Scene {
   private killer = '';
   private choosing = false;
   private currentOffer: string[] = [];
-  private choosingSince = 0;
+  private overlaySince = 0;
+  private overlayData: { key: 'facet' | 'door'; data: object } | null = null;
+  private doorPending = false;
+  private waveStarted = false;
   private boss: Boss | null = null;
   private finished = false;
 
@@ -68,8 +73,10 @@ export class ArenaScene extends Phaser.Scene {
     this.rng = new Rng(this.run.seed * 31 + this.run.room);
     this.advancing = false; this.pendingSpawns = 0; this.cleared = false; this.dead = false; this.killer = ''; this.choosing = false;
     this.zones = [];
-    this.boss = null; this.finished = false;
+    this.boss = null; this.finished = false; this.doorPending = false; this.waveStarted = false;
   }
+
+  get isEliteRoom() { return this.run.nextDoor === 'elite'; }
 
   get isBossRoom() { return this.run.room % RUN.roomsPerAct === 0; }
   get isLastRoom() { return this.run.room >= RUN.acts * RUN.roomsPerAct; }
@@ -142,31 +149,46 @@ export class ArenaScene extends Phaser.Scene {
     const onChosen = (id: string) => this.onFacetChosen(id);
     const onReroll = () => this.onFacetReroll();
     const onResume = () => { this.scene.resume(); this.emit(); };
-    this.game.events.on('facet-chosen', onChosen).on('facet-reroll', onReroll).on('resume-arena', onResume);
-    this.events.once('shutdown', () => this.game.events.off('facet-chosen', onChosen).off('facet-reroll', onReroll).off('resume-arena', onResume));
+    const onDoor = (r: DoorReward) => this.onDoorChosen(r);
+    this.game.events.on('facet-chosen', onChosen).on('facet-reroll', onReroll).on('resume-arena', onResume).on('door-chosen', onDoor);
+    this.events.once('shutdown', () => this.game.events.off('facet-chosen', onChosen).off('facet-reroll', onReroll).off('resume-arena', onResume).off('door-chosen', onDoor));
+
+    // Эффект двери «Передышка» — на входе
+    if (this.run.nextDoor === 'heal') this.player.heal(HEAL_DOOR_HP);
     this.events.on('resume', () => this.emit());
 
     if (this.run.room === 1 && !this.run.startOfferDone) {
-      // стартовая Грань: первая развилка на 0-й секунде
+      // стартовая Руна: первая развилка на 0-й секунде
       this.run.startOfferDone = true;
       this.choosing = true;
-      this.choosingSince = this.time.now;
       this.currentOffer = offerStartFacets(this.rng);
-      this.time.delayedCall(50, () => this.scene.launch('facet', { offer: this.currentOffer, rerollsLeft: 0, rank: 0, title: 'Стартовая Грань — с чем ныряем?' }));
+      this.openOverlay('facet', { offer: this.currentOffer, rerollsLeft: 0, rank: 0, title: 'Стартовая Руна — с чем ныряем?' });
       this.emit();
       return;
     }
-    this.spawnWave();
+    this.roomIntro(() => this.spawnWave());
     this.emit();
+  }
+
+  /** Короткий вход в комнату: подпись, затем телеграфы появления */
+  private roomIntro(then: () => void) {
+    const tag = this.run.nextDoor && this.run.nextDoor !== 'boss' ? ` · ${DOORS[this.run.nextDoor].name}` : this.isBossRoom ? ' · Логово' : '';
+    const t = this.add.text(ROOM.width / 2, ROOM.height / 2 - 40, `Акт ${Math.ceil(this.run.room / RUN.roomsPerAct)} · Комната ${((this.run.room - 1) % RUN.roomsPerAct) + 1}${tag}`, { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: '22px', color: '#9aa4b8' }).setOrigin(0.5).setDepth(20).setAlpha(0);
+    this.tweens.add({ targets: t, alpha: { from: 0, to: 1 }, duration: 200, yoyo: true, hold: 900, onComplete: () => t.destroy() });
+    // На время входа держим «ожидающее появление», чтобы комната не считалась пройденной
+    this.pendingSpawns++;
+    this.time.delayedCall(ROOM.introDelaySec * 1000, () => { this.pendingSpawns--; then(); });
   }
 
   update(_t: number, deltaMs: number) {
     if (this.dead || this.finished) return;
-    if (this.choosing) {
-      // сторож: экран выбора потерялся — перезапускаем
-      if (!this.scene.isActive('facet') && this.time.now - this.choosingSince > 600) {
-        this.choosing = false;
-        this.nextStep();
+    if (this.choosing || this.doorPending) {
+      // сторож: оверлей запрошен, но так и не появился (и арена не на паузе) — перезапускаем именно его
+      const o = this.overlayData;
+      if (o && !this.scene.isActive(o.key) && !this.scene.isPaused() && this.time.now - this.overlaySince > 1000) {
+        this.overlaySince = this.time.now;
+        this.scene.launch(o.key, o.data);
+        this.scene.pause();
       }
       return;
     }
@@ -207,7 +229,7 @@ export class ArenaScene extends Phaser.Scene {
     for (const e of this.enemies.getChildren() as Enemy[]) e.update(ctx);
 
     const alive = this.enemies.countActive(true);
-    if (alive === 0 && this.pendingSpawns === 0 && !this.advancing) this.onRoomCleared();
+    if (this.waveStarted && alive === 0 && this.pendingSpawns === 0 && !this.advancing) this.onRoomCleared();
     this.emit();
   }
 
@@ -296,6 +318,7 @@ export class ArenaScene extends Phaser.Scene {
   // ---------- волны и комнаты ----------
 
   private spawnWave() {
+    this.waveStarted = true;
     if (this.isBossRoom) {
       const pos = new Phaser.Math.Vector2(ROOM.width / 2, ROOM.wall + 120);
       this.pendingSpawns++;
@@ -306,7 +329,8 @@ export class ArenaScene extends Phaser.Scene {
       });
       return;
     }
-    const n = enemyCount(ROOM.baseCount, this.run.tier, this.run.room);
+    let n = enemyCount(ROOM.baseCount, this.run.tier, this.run.room);
+    if (this.isEliteRoom) n = Math.round(n * ELITE_ROOM.countMult);
     const maxRanged = Math.floor(n * ROOM.maxRangedShare);
     let ranged = 0;
     const center = new Phaser.Math.Vector2(this.player.x, this.player.y);
@@ -318,7 +342,9 @@ export class ArenaScene extends Phaser.Scene {
       this.pendingSpawns++;
       this.telegraphSpawn(pos, () => {
         this.pendingSpawns--;
-        this.enemies.add(new Enemy(this, pos.x, pos.y, id, ENEMIES[id] as EnemyDef, this.run.tier, this.run.room));
+        const e = new Enemy(this, pos.x, pos.y, id, ENEMIES[id] as EnemyDef, this.run.tier, this.run.room);
+        if (this.isEliteRoom) { e.hp = Math.round(e.hp * ELITE_ROOM.hpMult); (e as { maxHp: number }).maxHp = e.hp; e.setScale(1.15); }
+        this.enemies.add(e);
       });
     }
   }
@@ -347,29 +373,65 @@ export class ArenaScene extends Phaser.Scene {
     this.advancing = true;
     this.cleared = true;
     this.run.hp = this.player.hp;
+    // Награды дверей — после зачистки
+    switch (this.run.nextDoor) {
+      case 'shards': this.run.addShards(SHARDS_DOOR_BONUS); break;
+      case 'facet': this.run.addOffer(`Награда: ${DOORS.facet.name}`); break;
+      case 'elite': this.run.addShards(ELITE_ROOM.shardsBonus); this.run.addOffer(`Награда: ${DOORS.elite.name}`); break;
+    }
+    this.run.nextDoor = null;
     if (this.isLastRoom) { this.time.delayedCall(900, () => this.endRun(true)); return; }
     this.time.delayedCall(ROOM.clearDelaySec * 1000 * 0.5, () => this.nextStep());
   }
 
-  /** После комнаты: сначала все накопленные выборы Граней, затем следующая комната */
+  /** После комнаты: сначала все накопленные выборы Рун, затем дверь, затем следующая комната */
   private nextStep() {
     if (this.run.pendingOffers > 0) {
       this.choosing = true;
-      this.choosingSince = this.time.now;
       this.player.setVelocity(0, 0);
-      if (this.scene.isActive('facet')) this.scene.stop('facet');
       this.currentOffer = offerFacets(this.rng, { ownedSkills: this.run.skills, ownedFacets: this.run.facets, rank: this.run.rank });
-      if (this.currentOffer.length === 0) { this.run.pendingOffers = 0; this.nextStep(); return; }
-      this.scene.launch('facet', { offer: this.currentOffer, rerollsLeft: this.run.rerollsLeft, rank: this.run.rank });
-      this.emit();
+      if (this.currentOffer.length === 0) { this.run.pendingOffers = 0; this.choosing = false; this.nextStep(); return; }
+      const reason = this.run.offerReasons[0] ?? `Ранг ${this.run.rank}`;
+      this.openOverlay('facet', { offer: this.currentOffer, rerollsLeft: this.run.rerollsLeft, rank: this.run.rank, title: `${reason} — выбери Руну`, more: this.run.pendingOffers - 1 });
+      return;
+    }
+    if (!this.doorPending && this.run.nextDoor === null) {
+      this.doorPending = true;
+      const nextRoom = this.run.room + 1;
+      const doors = offerDoors(this.rng, { nextRoomIsBoss: nextRoom % RUN.roomsPerAct === 0, hp01: this.player.hp / this.player.maxHp, rank: this.run.rank });
+      this.openOverlay('door', { doors });
       return;
     }
     this.run.onRoomAdvance();
     this.scene.restart({ run: this.run });
   }
 
+  /** Единая точка открытия оверлея: сцена поверх + пауза арены (оба — в очередь менеджера сцен) */
+  private openOverlay(key: 'facet' | 'door', data: object) {
+    if (this.scene.isActive(key)) this.scene.stop(key);
+    this.overlayData = { key, data };
+    this.overlaySince = this.time.now;
+    this.scene.launch(key, data);
+    this.scene.pause();
+    this.emit();
+  }
+
+  private closeOverlay() {
+    this.overlayData = null;
+    if (this.scene.isPaused()) this.scene.resume();
+  }
+
+  private onDoorChosen(reward: DoorReward) {
+    if (!this.doorPending) return;
+    this.closeOverlay();
+    this.run.nextDoor = reward;
+    this.doorPending = false;
+    this.time.delayedCall(120, () => { this.run.onRoomAdvance(); this.scene.restart({ run: this.run }); });
+  }
+
   private onFacetChosen(id: string) {
     if (!this.choosing) return;
+    this.closeOverlay();
     const wasStart = this.run.rank === 0 && this.run.facets.length === 0;
     this.run.takeFacet(id);
     this.choosing = false;
@@ -378,7 +440,7 @@ export class ArenaScene extends Phaser.Scene {
       this.player.hp = Math.min(this.player.hp, this.player.maxHp);
       this.player.dodgeMax = 1 + this.run.mods.dodgeChargesBonus;
       this.player.dodgeCharges = this.player.dodgeMax;
-      this.spawnWave();
+      this.roomIntro(() => this.spawnWave());
       return;
     }
     this.player.maxHp = Math.max(1, 100 + this.run.mods.maxHpDelta);
@@ -390,6 +452,7 @@ export class ArenaScene extends Phaser.Scene {
 
   private onFacetReroll() {
     if (!this.choosing || this.run.rerollsLeft <= 0) return;
+    this.closeOverlay();
     this.run.rerollsLeft--;
     this.choosing = false;
     this.time.delayedCall(150, () => this.nextStep());
@@ -409,6 +472,7 @@ export class ArenaScene extends Phaser.Scene {
     const snap: ArenaSnapshot = {
       act: Math.ceil(this.run.room / RUN.roomsPerAct), roomInAct: ((this.run.room - 1) % RUN.roomsPerAct) + 1, roomsPerAct: RUN.roomsPerAct, acts: RUN.acts,
       boss: this.boss && this.boss.active ? { name: this.boss.def.name, hp01: this.boss.hp / this.boss.maxHp, phase: this.boss.bossPhase } : null,
+      roomTag: this.run.nextDoor && this.run.nextDoor !== 'boss' ? DOORS[this.run.nextDoor].name : '',
       paused, lastError: (globalThis as unknown as { __arkfallError?: string }).__arkfallError ?? '',
       tier: this.run.tier, room: this.run.room, seed: this.run.seed, kills: this.run.kills,
       alive: this.enemies.countActive(true), cleared: this.cleared, dead: this.dead, killer: this.killer,

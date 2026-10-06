@@ -11,7 +11,8 @@
     },
     "maxRangedShare": 0.4,
     "spawnTelegraphSec": 1.0,
-    "clearDelaySec": 2.0
+    "clearDelaySec": 2.0,
+    "introDelaySec": 0.7
   },
   "run": {
     "acts": 3,

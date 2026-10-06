@@ -62,11 +62,11 @@ export class HudScene extends Phaser.Scene {
       g.fillStyle(0xe0a62f, 1).fillRect(340, 660, 600 * Math.max(0, s.boss.hp01), 14);
     }
     this.bossText.setText(s.boss ? `${s.boss.name} · фаза ${s.boss.phase}` : '');
-    this.info.setText(`Тир ${s.tier} · Акт ${s.act}/${s.acts} · Комната ${s.roomInAct}/${s.roomsPerAct} · Враги ${s.alive} · Убито ${s.kills}      Ранг ${s.rank}  ${Math.floor(s.shards)}/${Math.ceil(s.nextRankAt)} осколков · опыт +${s.xp}`);
+    this.info.setText(`Тир ${s.tier} · Акт ${s.act}/${s.acts} · Комната ${s.roomInAct}/${s.roomsPerAct}${s.roomTag ? ' [' + s.roomTag + ']' : ''} · Враги ${s.alive} · Убито ${s.kills}      Ранг ${s.rank}  ${Math.floor(s.shards)}/${Math.ceil(s.nextRankAt)} осколков · опыт +${s.xp}`);
     const sk = s.skills.map((v) => `${v.key} ${v.name} ${v.charges !== undefined ? '●'.repeat(v.charges) + '○'.repeat((v.maxCharges ?? 0) - v.charges) : v.ready01 >= 1 ? '✓' : Math.round(v.ready01 * 100) + '%'}`);
     if (s.rhythm > 0 || s.hasRhythm) sk.push(`Ритм ${'|'.repeat(s.rhythm)}${'.'.repeat(5 - s.rhythm)}`);
     this.skillsText.setText(sk.join('    '));
-    this.facetsText.setText(s.facets.length ? 'Грани: ' + s.facets.map((id) => facetDef(id).name).join(' · ') : '');
+    this.facetsText.setText(s.facets.length ? 'Руны: ' + s.facets.map((id) => facetDef(id).name).join(' · ') : '');
 
     const by = (r: string) => s.ttkSamples.filter((x) => x.role === r);
     const common = s.ttkSamples.filter((x) => x.role !== 'tank');

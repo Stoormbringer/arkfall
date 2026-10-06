@@ -12,11 +12,11 @@ test('игра запускается без ошибок консоли', async
   expect(errors).toEqual([]);
 });
 
-test('после стартовой Грани в первой комнате есть живые враги, комната не перескочила', async ({ page }) => {
+test('после стартовой Руны в первой комнате есть живые враги, комната не перескочила', async ({ page }) => {
   await page.goto('/?seed=42&tier=1');
   await page.waitForTimeout(1200);
-  await page.keyboard.press('1'); // стартовая Грань
-  await page.waitForTimeout(3000);
+  await page.keyboard.press('1'); // стартовая Руна
+  await page.waitForTimeout(3800); // вход в комнату 0,7 с + телеграф 1 с
   const s = await snap(page);
   expect(s?.room).toBe(1);
   expect(s?.alive ?? 0).toBeGreaterThan(0);
@@ -32,7 +32,7 @@ test('скиллы из ?skills= подключаются в бой', async ({ p
 
 test('10-я комната — босс с полосой HP', async ({ page }) => {
   await page.goto('/?seed=42&tier=1&room=10');
-  await page.waitForTimeout(2500);
+  await page.waitForTimeout(3200);
   const s = await page.evaluate(() => (globalThis as unknown as { __arkfall?: { boss: { name: string } | null } }).__arkfall);
   expect(s?.boss?.name).toBe('Молот Ковчега');
 });

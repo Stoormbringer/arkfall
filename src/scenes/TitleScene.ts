@@ -66,7 +66,7 @@ export class TitleScene extends Phaser.Scene {
   private dive() {
     if (this.diving) return;
     this.diving = true;
-    for (const k of ['arena', 'hud', 'facet', 'pause', 'summary']) if (this.scene.isActive(k) || this.scene.isPaused(k)) this.scene.stop(k);
+    for (const k of ['arena', 'hud', 'facet', 'door', 'pause', 'summary']) if (this.scene.isActive(k) || this.scene.isPaused(k)) this.scene.stop(k);
     this.scene.start('arena', { run: new RunState(this.tier, this.seed, this.progress.skills) });
   }
 }

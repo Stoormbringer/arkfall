@@ -25,14 +25,14 @@ export class SummaryScene extends Phaser.Scene {
       `TTK обычных (медиана): ${med.toFixed(2)} с`,
       `Опыт: +${Math.round(d.won ? d.run.xp * 1.3 : d.run.xp)}${d.won ? ' (с бонусом завершения +30 %)' : ''} → уровень ${levelFromXp(d.progress.xp).level}` + (d.progress.pendingMilestones.length ? `  · новый скилл ждёт в хабе` : ''),
       '',
-      'Грани забега:',
+      'Руны забега:',
       d.run.facets.length ? d.run.facets.map((id) => '  ' + facetDef(id).name).join('\n') : '  —',
     ];
     this.add.text(640, 240, lines.join('\n'), { ...mono, fontSize: '16px', align: 'center', lineSpacing: 6 }).setOrigin(0.5, 0);
 
     this.add.text(640, 640, 'Enter или клик — в хаб', { ...mono, fontSize: '18px' }).setOrigin(0.5);
     const toHub = () => {
-      for (const k of ['arena', 'hud', 'facet', 'pause']) if (this.scene.isActive(k) || this.scene.isPaused(k)) this.scene.stop(k);
+      for (const k of ['arena', 'hud', 'facet', 'door', 'pause']) if (this.scene.isActive(k) || this.scene.isPaused(k)) this.scene.stop(k);
       this.scene.start('title');
     };
     this.input.keyboard!.once('keydown-ENTER', toHub);

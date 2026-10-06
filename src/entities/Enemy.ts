@@ -9,6 +9,7 @@ export interface EnemyContext {
   shoot: (x: number, y: number, angle: number, speed: number, dmg: number, source: string) => void;
   hitPlayer: (dmg: number, source: string) => void;
   spawnAdd?: (x: number, y: number, id: 'rusher' | 'shooter') => void;
+  aliveCount?: () => number;
 }
 
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
@@ -19,6 +20,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   readonly dmg: number;
   readonly speed: number;
   windupMs: number;
+  recoverSecOverride: number | null = null;
   readonly isBoss: boolean;
   phase: Phase = 'chase';
   phaseUntil = 0;
@@ -127,7 +129,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
             ctx.hitPlayer(this.dmg, this.def.name);
           }
         }
-        if (now >= this.phaseUntil) { this.setVelocity(0, 0); this.phase = 'recover'; this.phaseUntil = now + atk.recoverSec * 1000; }
+        if (now >= this.phaseUntil) { this.setVelocity(0, 0); this.phase = 'recover'; this.phaseUntil = now + (this.recoverSecOverride ?? atk.recoverSec) * 1000; }
         break;
       }
       case 'recover': {

@@ -11,7 +11,7 @@ import { loadProgress, recordRun } from '../meta/Progress';
 import { Player } from '../entities/Player';
 import { Projectile } from '../entities/Projectile';
 import { RunState } from '../run/RunState';
-import { offerFacets } from '../run/facetOffer';
+import { offerFacets, offerStartFacets } from '../run/facetOffer';
 import { assignKeys, Barrier, createSkill, type Battlefield, type Skill, type SkillView } from '../skills/skills';
 import { loadProgress as loadP } from '../meta/Progress';
 
@@ -133,6 +133,16 @@ export class ArenaScene extends Phaser.Scene {
     this.game.events.on('resume-arena', () => { this.scene.resume(); this.emit(); });
     this.events.on('resume', () => this.emit());
 
+    if (this.run.room === 1 && !this.run.startOfferDone) {
+      // стартовая Грань: первая развилка на 0-й секунде
+      this.run.startOfferDone = true;
+      this.choosing = true;
+      this.choosingSince = this.time.now;
+      this.currentOffer = offerStartFacets(this.rng);
+      this.time.delayedCall(50, () => this.scene.launch('facet', { offer: this.currentOffer, rerollsLeft: 0, rank: 0, title: 'Стартовая Грань — с чем ныряем?' }));
+      this.emit();
+      return;
+    }
     this.spawnWave();
     this.emit();
   }
@@ -175,6 +185,7 @@ export class ArenaScene extends Phaser.Scene {
       player: this.player,
       shoot: (x: number, y: number, a: number, sp: number, d: number, src: string) => (this.bullets.get(x, y) as Projectile | null)?.fire(x, y, a, sp, d, src),
       hitPlayer: (d: number, src: string) => this.hitPlayer(d, src),
+      aliveCount: () => this.enemies.countActive(true) + this.pendingSpawns,
       spawnAdd: (x: number, y: number, id: 'rusher' | 'shooter') => {
         this.pendingSpawns++;
         this.telegraphSpawn(new Phaser.Math.Vector2(x, y), () => { this.pendingSpawns--; this.enemies.add(new Enemy(this, x, y, id, ENEMIES[id] as EnemyDef, this.run.tier, this.run.room)); });
@@ -346,8 +357,17 @@ export class ArenaScene extends Phaser.Scene {
 
   private onFacetChosen(id: string) {
     if (!this.choosing) return;
+    const wasStart = this.run.rank === 0 && this.run.facets.length === 0;
     this.run.takeFacet(id);
     this.choosing = false;
+    if (wasStart) {
+      this.player.maxHp = Math.max(1, 100 + this.run.mods.maxHpDelta);
+      this.player.hp = Math.min(this.player.hp, this.player.maxHp);
+      this.player.dodgeMax = 1 + this.run.mods.dodgeChargesBonus;
+      this.player.dodgeCharges = this.player.dodgeMax;
+      this.spawnWave();
+      return;
+    }
     this.player.maxHp = Math.max(1, 100 + this.run.mods.maxHpDelta);
     this.player.hp = Math.min(this.player.hp, this.player.maxHp);
     this.player.dodgeMax = 1 + this.run.mods.dodgeChargesBonus;

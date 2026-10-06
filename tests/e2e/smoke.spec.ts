@@ -12,8 +12,10 @@ test('игра запускается без ошибок консоли', async
   expect(errors).toEqual([]);
 });
 
-test('через 3 секунды в первой комнате есть живые враги, комната не перескочила', async ({ page }) => {
+test('после стартовой Грани в первой комнате есть живые враги, комната не перескочила', async ({ page }) => {
   await page.goto('/?seed=42&tier=1');
+  await page.waitForTimeout(1200);
+  await page.keyboard.press('1'); // стартовая Грань
   await page.waitForTimeout(3000);
   const s = await snap(page);
   expect(s?.room).toBe(1);

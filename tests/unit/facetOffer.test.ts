@@ -37,3 +37,14 @@ describe('предложение Граней (GDD §C.4)', () => {
     expect(m.spark.extraJumps).toBe(2);
   });
 });
+
+describe('стартовая Грань (GDD §2 шаг 2)', () => {
+  it('3 разные дикие Грани, без эпических', async () => {
+    const { offerStartFacets } = await import('../../src/run/facetOffer');
+    for (let seed = 1; seed < 100; seed++) {
+      const o = offerStartFacets(new Rng(seed));
+      expect(new Set(o).size).toBe(3);
+      for (const id of o) { expect(facetDef(id).binds).toBeNull(); expect(facetDef(id).rarity).not.toBe('epic'); }
+    }
+  });
+});

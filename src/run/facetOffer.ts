@@ -20,6 +20,19 @@ function draw(rng: Rng, ids: string[], rank: number): string | null {
 }
 
 /** GDD §C.4: 2 Грани, привязанные к скиллам игрока, + 1 дикая; без повторов; эпические с Ранга 4. */
+/** Стартовая Грань на 0-й секунде (GDD §2, шаг 2): 3 диких, без эпических */
+export function offerStartFacets(rng: Rng): string[] {
+  let wild = IMPLEMENTED_FACETS.filter((id) => facetDef(id).binds === null && facetDef(id).rarity !== 'epic');
+  const out: string[] = [];
+  while (out.length < 3 && wild.length) {
+    const id = draw(rng, [...wild], 1);
+    if (!id) break;
+    out.push(id);
+    wild = wild.filter((x) => x !== id);
+  }
+  return out;
+}
+
 export function offerFacets(rng: Rng, input: OfferInput): string[] {
   const pool = (input.pool ?? IMPLEMENTED_FACETS).filter((id) => !input.ownedFacets.includes(id));
   let bound = pool.filter((id) => { const b = facetDef(id).binds; return b !== null && input.ownedSkills.includes(b); });

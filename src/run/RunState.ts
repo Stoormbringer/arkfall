@@ -13,6 +13,7 @@ export class RunState {
   shards = 0;
   rank = 0;
   pendingOffers = 0;
+  startOfferDone = false;
   rerollsLeft = F.facetOffer.rerollsPerAct;
   readonly skills: string[];
   readonly facets: string[] = [];

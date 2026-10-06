@@ -13,7 +13,7 @@ export interface EnemyDef {
   speed: number;
   attack: AttackDef;
   xpWeight: number;
-  boss?: { phase2At: number; phase2WindupMult: number; phase2Adds: number; phase2RingBullets: number; phase2RingSpeed: number };
+  boss?: { phase2At: number; phase2WindupMult: number; phase2RecoverSec: number; phase2AddsOnTransition: number; phase2RingBullets: number; phase2RingSpeed: number; phase2RingDelaySec: number; phase2RingDamageMult: number };
 }
 
 export type EnemyId = 'rusher' | 'shooter' | 'tank' | 'boss_hammer';

@@ -57,7 +57,7 @@
     "role": "tank",
     "color": "0xe0a62f",
     "radius": 36,
-    "hp": 900,
+    "hp": 560,
     "dmg": 30,
     "speed": 95,
     "attack": {
@@ -70,10 +70,13 @@
     "xpWeight": 40,
     "boss": {
       "phase2At": 0.5,
-      "phase2WindupMult": 0.75,
-      "phase2Adds": 2,
-      "phase2RingBullets": 8,
-      "phase2RingSpeed": 260
+      "phase2WindupMult": 1.0,
+      "phase2RecoverSec": 1.4,
+      "phase2AddsOnTransition": 2,
+      "phase2RingBullets": 6,
+      "phase2RingSpeed": 190,
+      "phase2RingDelaySec": 0.45,
+      "phase2RingDamageMult": 0.3
     }
   }
 }

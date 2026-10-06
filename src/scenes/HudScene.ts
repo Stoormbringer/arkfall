@@ -35,7 +35,10 @@ export class HudScene extends Phaser.Scene {
     this.bossText = this.add.text(640, 652, '', { ...style, fontSize: '13px', color: '#e0a62f' }).setOrigin(0.5, 1);
     this.banner = this.add.text(640, 330, '', { ...style, fontSize: '28px', align: 'center' }).setOrigin(0.5);
     this.add.text(640, 696, 'WASD — движение · ЛКМ — удар · ПКМ — рывок · Q — разряд · Space — уклонение · Esc/P — пауза', { ...style, color: '#6f7890', fontSize: '12px' }).setOrigin(0.5, 1);
-    this.game.events.on('arena-state', (s: ArenaSnapshot) => this.render(s));
+    // Подписка на событие игры снимается при остановке сцены — иначе «призрачный» HUD пишет в уничтоженные объекты
+    const handler = (s: ArenaSnapshot) => { if (this.scene.isActive()) this.render(s); };
+    this.game.events.on('arena-state', handler);
+    this.events.once('shutdown', () => this.game.events.off('arena-state', handler));
   }
 
   private render(s: ArenaSnapshot) {

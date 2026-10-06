@@ -30,7 +30,12 @@ export class SummaryScene extends Phaser.Scene {
     ];
     this.add.text(640, 240, lines.join('\n'), { ...mono, fontSize: '16px', align: 'center', lineSpacing: 6 }).setOrigin(0.5, 0);
 
-    this.add.text(640, 640, 'Enter — в хаб', { ...mono, fontSize: '18px' }).setOrigin(0.5);
-    this.input.keyboard!.once('keydown-ENTER', () => { this.scene.stop('arena'); this.scene.stop('hud'); this.scene.start('title'); });
+    this.add.text(640, 640, 'Enter или клик — в хаб', { ...mono, fontSize: '18px' }).setOrigin(0.5);
+    const toHub = () => {
+      for (const k of ['arena', 'hud', 'facet', 'pause']) if (this.scene.isActive(k) || this.scene.isPaused(k)) this.scene.stop(k);
+      this.scene.start('title');
+    };
+    this.input.keyboard!.once('keydown-ENTER', toHub);
+    this.input.once('pointerdown', toHub);
   }
 }

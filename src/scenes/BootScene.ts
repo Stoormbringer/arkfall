@@ -20,12 +20,6 @@ export class BootScene extends Phaser.Scene {
     circle('bullet', 6, 0xffb36b);
     for (const [id, def] of Object.entries(ENEMIES)) circle(`enemy-${id}`, def.radius, Number(def.color), 0x1a1d26);
 
-    // Пол арены: тёмная сетка, читаемая на фоне телеграфов
-    g.clear();
-    g.fillStyle(0x161a23, 1).fillRect(0, 0, 64, 64);
-    g.lineStyle(1, 0x1f2430, 1).strokeRect(0, 0, 64, 64);
-    g.generateTexture('floor', 64, 64);
-
     g.destroy();
     // Прямой вход по ?tier=/?seed= — для тестов и быстрой проверки; иначе хаб
     const q = new URLSearchParams(location.search);

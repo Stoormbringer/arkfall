@@ -10,8 +10,23 @@ import { SummaryScene } from './scenes/SummaryScene';
 import { SkillChoiceScene } from './scenes/SkillChoiceScene';
 
 const g = globalThis as unknown as { __arkfallError?: string };
-window.addEventListener('error', (e) => { g.__arkfallError = `${e.message} @ ${e.filename?.split('/').pop()}:${e.lineno}`; });
-window.addEventListener('unhandledrejection', (e) => { g.__arkfallError = String(e.reason); });
+function showError(msg: string) {
+  g.__arkfallError = msg;
+  let el = document.getElementById('arkfall-error');
+  if (!el) {
+    el = document.createElement('pre');
+    el.id = 'arkfall-error';
+    el.style.cssText = 'position:fixed;left:12px;bottom:12px;max-width:60vw;padding:10px 12px;background:#2a0f0c;color:#ff8a7a;border:1px solid #ff6b5a;font:12px ui-monospace,Menlo,monospace;white-space:pre-wrap;z-index:9999;';
+    document.body.appendChild(el);
+  }
+  el.textContent = `Ошибка (пришли её в чат):\n${msg}`;
+}
+window.addEventListener('error', (e) => {
+  const stack = (e.error as Error | undefined)?.stack ?? '';
+  const frames = stack.split('\n').slice(0, 8).map((l) => l.trim().replace(/https?:\/\/[^ ]*\//, '')).join('\n');
+  showError(`${e.message}\n${frames}`);
+});
+window.addEventListener('unhandledrejection', (e) => showError(String(e.reason)));
 
 new Phaser.Game({
   type: Phaser.AUTO,

@@ -75,10 +75,22 @@ export class ArenaScene extends Phaser.Scene {
   get isLastRoom() { return this.run.room >= RUN.acts * RUN.roomsPerAct; }
 
   create() {
+    try { this.createInner(); } catch (err) {
+      (globalThis as unknown as { __arkfallError?: string }).__arkfallError = `ArenaScene.create: ${(err as Error).message}`;
+      throw err;
+    }
+  }
+
+  private createInner() {
     if (!this.scene.isActive('hud')) this.scene.launch('hud');
     const { width, height, wall } = ROOM;
     this.physics.world.setBounds(wall, wall, width - wall * 2, height - wall * 2);
-    this.add.tileSprite(0, 0, width, height, 'floor').setOrigin(0).setDepth(0);
+    // Пол: сетка графикой, без TileSprite (он берёт холст из пула и ломается после scene.stop)
+    const floor = this.add.graphics().setDepth(0);
+    floor.fillStyle(0x161a23, 1).fillRect(0, 0, width, height);
+    floor.lineStyle(1, 0x1f2430, 1);
+    for (let x = 0; x <= width; x += 64) floor.lineBetween(x, 0, x, height);
+    for (let y = 0; y <= height; y += 64) floor.lineBetween(0, y, width, y);
     this.add.rectangle(width / 2, height / 2, width - wall * 2, height - wall * 2).setStrokeStyle(3, 0x2d3444).setDepth(1);
 
     this.player = new Player(this, width / 2, height / 2, this.run.mods, this.run.hp ?? undefined);
@@ -127,10 +139,11 @@ export class ArenaScene extends Phaser.Scene {
       if (p.rightButtonDown() && !this.dead && !this.choosing) this.skills.find((s) => s.id === 'dash_cut')?.tryCast(new Phaser.Math.Vector2(p.worldX, p.worldY));
     });
 
-    this.game.events.off('facet-chosen').off('facet-reroll').off('resume-arena');
-    this.game.events.on('facet-chosen', (id: string) => this.onFacetChosen(id));
-    this.game.events.on('facet-reroll', () => this.onFacetReroll());
-    this.game.events.on('resume-arena', () => { this.scene.resume(); this.emit(); });
+    const onChosen = (id: string) => this.onFacetChosen(id);
+    const onReroll = () => this.onFacetReroll();
+    const onResume = () => { this.scene.resume(); this.emit(); };
+    this.game.events.on('facet-chosen', onChosen).on('facet-reroll', onReroll).on('resume-arena', onResume);
+    this.events.once('shutdown', () => this.game.events.off('facet-chosen', onChosen).off('facet-reroll', onReroll).off('resume-arena', onResume));
     this.events.on('resume', () => this.emit());
 
     if (this.run.room === 1 && !this.run.startOfferDone) {

@@ -17,7 +17,8 @@ export class TitleScene extends Phaser.Scene {
   constructor() { super('title'); }
 
   create() {
-    this.scene.stop('hud');
+    this.diving = false;
+    if (this.scene.isActive('hud')) this.scene.stop('hud');
     this.progress = loadProgress();
     if (this.progress.pendingMilestones.length) { this.scene.start('skillchoice'); return; }
     this.tier = this.progress.unlockedTier;
@@ -61,7 +62,11 @@ export class TitleScene extends Phaser.Scene {
     this.statsText.setText(`Открыто Тиров: ${p.unlockedTier} · Забегов: ${p.runs} · Побед: ${p.wins} · Лучшая комната: ${p.bestRoom}`);
   }
 
+  private diving = false;
   private dive() {
+    if (this.diving) return;
+    this.diving = true;
+    for (const k of ['arena', 'hud', 'facet', 'pause', 'summary']) if (this.scene.isActive(k) || this.scene.isPaused(k)) this.scene.stop(k);
     this.scene.start('arena', { run: new RunState(this.tier, this.seed, this.progress.skills) });
   }
 }

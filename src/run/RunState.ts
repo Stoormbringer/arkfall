@@ -8,6 +8,7 @@ export class RunState {
   seed: number;
   room = 1;
   kills = 0;
+  xp = 0; // опыт персонажа, набранный в забеге (GDD §5.2)
   hp: number | null = null; // null = полное при первом входе
   shards = 0;
   rank = 0;

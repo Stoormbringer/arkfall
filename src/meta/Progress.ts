@@ -1,3 +1,5 @@
+import { levelFromXp, milestonesCrossed } from './Level';
+
 /** Постоянный прогресс аккаунта (GDD §9): пока только в браузере. */
 export interface Progress {
   unlockedTier: number;   // максимальный доступный Тир
@@ -5,10 +7,13 @@ export interface Progress {
   wins: number;
   bestRoom: number;
   bestTierCleared: number;
+  xp: number;                 // накопленный опыт персонажа
+  skills: string[];           // выбранные Основные скиллы
+  pendingMilestones: number[]; // уровни, на которых выбор скилла ещё не сделан
 }
 
 const KEY = 'arkfall.progress.v1';
-const DEFAULT: Progress = { unlockedTier: 1, runs: 0, wins: 0, bestRoom: 0, bestTierCleared: 0 };
+const DEFAULT: Progress = { unlockedTier: 1, runs: 0, wins: 0, bestRoom: 0, bestTierCleared: 0, xp: 0, skills: [], pendingMilestones: [] };
 
 export function loadProgress(): Progress {
   try {
@@ -22,13 +27,24 @@ export function saveProgress(p: Progress) {
 }
 
 /** Завершение забега: победа открывает следующий Тир (GDD §6.6 — мастерством, не уровнем) */
-export function recordRun(p: Progress, tier: number, room: number, won: boolean): Progress {
-  const next: Progress = { ...p, runs: p.runs + 1, bestRoom: Math.max(p.bestRoom, room) };
+export function recordRun(p: Progress, tier: number, room: number, won: boolean, runXp = 0): Progress {
+  const gained = Math.round(won ? runXp * 1.3 : runXp); // GDD §5.5: бонус завершения +30 % только живым
+  const before = levelFromXp(p.xp).level;
+  const xp = p.xp + gained;
+  const after = levelFromXp(xp).level;
+  const next: Progress = { ...p, runs: p.runs + 1, bestRoom: Math.max(p.bestRoom, room), xp,
+    pendingMilestones: [...p.pendingMilestones, ...milestonesCrossed(before, after)] };
   if (won) {
     next.wins++;
     next.bestTierCleared = Math.max(next.bestTierCleared, tier);
     next.unlockedTier = Math.max(next.unlockedTier, tier + 1);
   }
+  saveProgress(next);
+  return next;
+}
+
+export function chooseSkill(p: Progress, id: string): Progress {
+  const next: Progress = { ...p, skills: [...p.skills, id], pendingMilestones: p.pendingMilestones.slice(1) };
   saveProgress(next);
   return next;
 }

@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { loadProgress, resetProgress, type Progress } from '../meta/Progress';
 import { RunState } from '../run/RunState';
-import { MVP_SKILLS } from '../skills/skills';
+import { levelFromXp } from '../meta/Level';
+import { SKILLS } from '../meta/skillChoice';
 
 /** Стартовый экран: выбор Тира из открытых, сид, «Нырнуть». */
 export class TitleScene extends Phaser.Scene {
@@ -11,12 +12,14 @@ export class TitleScene extends Phaser.Scene {
   private tierText!: Phaser.GameObjects.Text;
   private seedText!: Phaser.GameObjects.Text;
   private statsText!: Phaser.GameObjects.Text;
+  private levelText!: Phaser.GameObjects.Text;
 
   constructor() { super('title'); }
 
   create() {
     this.scene.stop('hud');
     this.progress = loadProgress();
+    if (this.progress.pendingMilestones.length) { this.scene.start('skillchoice'); return; }
     this.tier = this.progress.unlockedTier;
     this.seed = Math.floor(Math.random() * 1_000_000);
     const mono = { fontFamily: 'ui-monospace, Menlo, monospace', color: '#e8e4d8' };
@@ -35,7 +38,8 @@ export class TitleScene extends Phaser.Scene {
     btn.on('pointerout', () => btn.setFillStyle(0x161a23));
     btn.on('pointerdown', () => this.dive());
 
-    this.statsText = this.add.text(640, 600, '', { ...mono, fontSize: '13px', color: '#9aa4b8', align: 'center' }).setOrigin(0.5);
+    this.levelText = this.add.text(640, 560, '', { ...mono, fontSize: '15px', color: '#f0c75e', align: 'center' }).setOrigin(0.5);
+    this.statsText = this.add.text(640, 610, '', { ...mono, fontSize: '13px', color: '#9aa4b8', align: 'center' }).setOrigin(0.5);
     this.add.text(640, 690, 'Забег: 3 акта × 10 комнат, босс в конце каждого акта. Живой выход после третьего босса открывает следующий Тир. · Ctrl+Shift+Del — сброс прогресса', { ...mono, fontSize: '11px', color: '#6f7890' }).setOrigin(0.5);
 
     const kb = this.input.keyboard!;
@@ -51,10 +55,13 @@ export class TitleScene extends Phaser.Scene {
     const p = this.progress;
     this.tierText.setText(`Тир ${this.tier}  ${this.tier < p.unlockedTier ? '→' : p.unlockedTier > 1 ? '' : '(пройди его без смерти, чтобы открыть Тир 2)'}`.trim());
     this.seedText.setText(`сид ${this.seed}`);
+    const lv = levelFromXp(p.xp);
+    const sk = p.skills.length ? p.skills.map((id) => SKILLS[id]?.name ?? id).join(' · ') : 'пока только клинок и уклонение — первый скилл на 10 уровне';
+    this.levelText.setText(`Уровень ${lv.level} · ${Math.floor(lv.into)}/${Math.ceil(lv.need)} опыта\nСкиллы: ${sk}`);
     this.statsText.setText(`Открыто Тиров: ${p.unlockedTier} · Забегов: ${p.runs} · Побед: ${p.wins} · Лучшая комната: ${p.bestRoom}`);
   }
 
   private dive() {
-    this.scene.start('arena', { run: new RunState(this.tier, this.seed, MVP_SKILLS) });
+    this.scene.start('arena', { run: new RunState(this.tier, this.seed, this.progress.skills) });
   }
 }

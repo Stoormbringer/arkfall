@@ -21,8 +21,8 @@ test('через 3 секунды в первой комнате есть жив
   expect(s?.dead).toBe(false);
 });
 
-test('у игрока подключены MVP-скиллы', async ({ page }) => {
-  await page.goto('/?seed=42&tier=1');
+test('скиллы из ?skills= подключаются в бой', async ({ page }) => {
+  await page.goto('/?seed=42&tier=1&skills=dash_cut,spark');
   await page.waitForTimeout(1000);
   const s = await snap(page);
   expect(s?.skills.map((x) => x.name)).toEqual(expect.arrayContaining(['Рывок-разрез', 'Разряд']));

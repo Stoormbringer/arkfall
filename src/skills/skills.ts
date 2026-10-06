@@ -8,14 +8,15 @@ import type { Mods } from '../run/mods';
 export interface Battlefield {
   enemies: () => Enemy[];
   damage: (e: Enemy, amount: number, from: Phaser.Math.Vector2, knockback: number, source: string) => boolean; // true = убит
-  addZone: (x: number, y: number, radius: number, durationSec: number, dps: number, tickSec: number) => void;
+  addZone: (x: number, y: number, radius: number, durationSec: number, dps: number, tickSec: number, slow?: number) => void;
+  shootPlayer: (x: number, y: number, angle: number, speed: number, damage: number, onHit?: (e: Enemy, x: number, y: number) => void) => void;
 }
 
 export interface SkillView { key: string; name: string; ready01: number; charges?: number; maxCharges?: number }
 
 export abstract class Skill {
   abstract readonly id: string;
-  abstract readonly key: string;
+  abstract key: string;
   constructor(protected scene: Phaser.Scene, protected player: Player, protected mods: Mods, protected field: Battlefield) {}
   abstract view(): SkillView;
   abstract tryCast(aim: Phaser.Math.Vector2): void;
@@ -27,7 +28,7 @@ export abstract class Skill {
 const D = SKILLS.dash_cut;
 export class DashCut extends Skill {
   readonly id = 'dash_cut';
-  readonly key = 'ПКМ';
+  key = 'ПКМ';
   private charges = D.resource.charges;
   private rechargeAt = 0;
   private until = 0;
@@ -101,7 +102,7 @@ export class DashCut extends Skill {
 const S = SKILLS.spark;
 export class Spark extends Skill {
   readonly id = 'spark';
-  readonly key = 'Q';
+  key = 'Q';
   private readyAt = 0;
   private fx: Phaser.GameObjects.Graphics;
   constructor(scene: Phaser.Scene, player: Player, mods: Mods, field: Battlefield) {
@@ -145,6 +146,152 @@ export class Spark extends Skill {
       if (last && !killed && this.mods.spark.grounding) e.stun(800);
     });
     this.scene.tweens.add({ targets: this.fx, alpha: { from: 1, to: 0 }, duration: 160, onComplete: () => { this.fx.clear(); this.fx.alpha = 1; } });
+  }
+}
+
+// ---------- Осколочный выстрел ----------
+const SH = SKILLS.shard_shot;
+export class ShardShot extends Skill {
+  readonly id = 'shard_shot';
+  key = 'E';
+  private readyAt = 0;
+  get cooldownMs() { return SH.resource.cooldownSec * 1000 * this.mods.cooldownMult; }
+  view(): SkillView { return { key: this.key, name: SH.name, ready01: Phaser.Math.Clamp(1 - (this.readyAt - this.scene.time.now) / this.cooldownMs, 0, 1) }; }
+  tryCast(aim: Phaser.Math.Vector2) {
+    const now = this.scene.time.now;
+    if (now < this.readyAt) return;
+    this.readyAt = now + this.cooldownMs;
+    const a = Phaser.Math.Angle.Between(this.player.x, this.player.y, aim.x, aim.y);
+    const dm = this.mods.damageMult;
+    this.field.shootPlayer(this.player.x, this.player.y, a, SH.base.speed, SH.base.damage * dm, (_e, x, y) => {
+      const spread = Phaser.Math.DegToRad(SH.base.spreadDeg);
+      for (let i = 0; i < SH.base.shards; i++) {
+        const sa = a + spread * (i - (SH.base.shards - 1) / 2);
+        this.field.shootPlayer(x, y, sa, SH.base.speed * 1.1, SH.base.shardDamage * dm);
+      }
+    });
+  }
+}
+
+// ---------- Гравитационный колодец ----------
+const G = SKILLS.gravity_well;
+export class GravityWell extends Skill {
+  readonly id = 'gravity_well';
+  key = 'R';
+  private readyAt = 0;
+  private center: Phaser.Math.Vector2 | null = null;
+  private until = 0;
+  private gfx: Phaser.GameObjects.Graphics;
+  constructor(scene: Phaser.Scene, player: Player, mods: Mods, field: Battlefield) {
+    super(scene, player, mods, field);
+    this.gfx = scene.add.graphics().setDepth(4);
+  }
+  get cooldownMs() { return G.resource.cooldownSec * 1000 * this.mods.cooldownMult; }
+  view(): SkillView { return { key: this.key, name: G.name, ready01: Phaser.Math.Clamp(1 - (this.readyAt - this.scene.time.now) / this.cooldownMs, 0, 1) }; }
+  tryCast(aim: Phaser.Math.Vector2) {
+    const now = this.scene.time.now;
+    if (now < this.readyAt) return;
+    this.readyAt = now + this.cooldownMs;
+    this.center = aim.clone();
+    this.until = now + G.base.durationSec * 1000;
+  }
+  update() {
+    if (!this.center) return;
+    const now = this.scene.time.now;
+    if (now >= this.until) { this.center = null; this.gfx.clear(); return; }
+    const p = 1 - (this.until - now) / (G.base.durationSec * 1000);
+    this.gfx.clear().lineStyle(2, 0xb58cff, 0.8).strokeCircle(this.center.x, this.center.y, G.base.radius * (1 - 0.3 * p));
+    this.gfx.fillStyle(0xb58cff, 0.08).fillCircle(this.center.x, this.center.y, G.base.radius);
+    for (const e of this.field.enemies()) {
+      if (!e.active) continue;
+      const d = Phaser.Math.Distance.BetweenPoints(this.center, e);
+      if (d > G.base.radius || d < 8) continue;
+      const strength = 420 * (1 - d / G.base.radius) + 80;
+      e.pull.set((this.center.x - e.x) / d * strength, (this.center.y - e.y) / d * strength);
+    }
+  }
+}
+
+// ---------- Барьер-кольцо ----------
+const B = SKILLS.barrier;
+export class Barrier extends Skill {
+  readonly id = 'barrier';
+  key = 'F';
+  private readyAt = 0;
+  absorbLeft = 0;
+  private gfx: Phaser.GameObjects.Graphics;
+  constructor(scene: Phaser.Scene, player: Player, mods: Mods, field: Battlefield) {
+    super(scene, player, mods, field);
+    this.gfx = scene.add.graphics().setDepth(11);
+  }
+  get active() { return this.absorbLeft > 0; }
+  get cooldownMs() { return B.resource.cooldownSec * 1000 * this.mods.cooldownMult; }
+  view(): SkillView { return { key: this.key, name: B.name, ready01: this.active ? 1 : Phaser.Math.Clamp(1 - (this.readyAt - this.scene.time.now) / this.cooldownMs, 0, 1) }; }
+  tryCast() {
+    const now = this.scene.time.now;
+    if (now < this.readyAt || this.active) return;
+    this.readyAt = now + this.cooldownMs;
+    this.absorbLeft = B.base.absorb;
+  }
+  /** Возвращает урон, дошедший до игрока */
+  absorb(amount: number): number {
+    if (!this.active) return amount;
+    const taken = Math.min(this.absorbLeft, amount);
+    this.absorbLeft -= taken;
+    if (this.absorbLeft <= 0) this.burst();
+    return amount - taken;
+  }
+  private burst() {
+    const c = new Phaser.Math.Vector2(this.player.x, this.player.y);
+    const flash = this.scene.add.circle(c.x, c.y, B.base.burstRadius, 0x8fd3ff, 0.4).setDepth(6);
+    this.scene.tweens.add({ targets: flash, alpha: 0, duration: 220, onComplete: () => flash.destroy() });
+    for (const e of [...this.field.enemies()])
+      if (e.active && Phaser.Math.Distance.BetweenPoints(c, e) <= B.base.burstRadius + e.def.radius) this.field.damage(e, B.base.burstDamage * this.mods.damageMult, c, 160, B.name);
+    this.gfx.clear();
+  }
+  update() {
+    this.gfx.clear();
+    if (!this.active) return;
+    this.gfx.lineStyle(3, 0x8fd3ff, 0.5 + 0.5 * (this.absorbLeft / B.base.absorb)).strokeCircle(this.player.x, this.player.y, 26);
+  }
+}
+
+// ---------- Шипастая земля ----------
+const SP = SKILLS.spike_ground;
+export class SpikeGround extends Skill {
+  readonly id = 'spike_ground';
+  key = 'E';
+  private readyAt = 0;
+  get cooldownMs() { return SP.resource.cooldownSec * 1000 * this.mods.cooldownMult; }
+  view(): SkillView { return { key: this.key, name: SP.name, ready01: Phaser.Math.Clamp(1 - (this.readyAt - this.scene.time.now) / this.cooldownMs, 0, 1) }; }
+  tryCast(aim: Phaser.Math.Vector2) {
+    const now = this.scene.time.now;
+    if (now < this.readyAt) return;
+    this.readyAt = now + this.cooldownMs;
+    this.field.addZone(aim.x, aim.y, SP.base.radius, SP.base.durationSec, SP.base.damage / SP.base.tickSec, SP.base.tickSec, 1 - SP.base.slow);
+  }
+}
+
+/** Фабрика: id скилла → экземпляр; пассивы (blood_rhythm) обрабатываются игроком */
+export function createSkill(id: string, scene: Phaser.Scene, player: Player, mods: Mods, field: Battlefield): Skill | null {
+  switch (id) {
+    case 'dash_cut': return new DashCut(scene, player, mods, field);
+    case 'spark': return new Spark(scene, player, mods, field);
+    case 'shard_shot': return new ShardShot(scene, player, mods, field);
+    case 'gravity_well': return new GravityWell(scene, player, mods, field);
+    case 'barrier': return new Barrier(scene, player, mods, field);
+    case 'spike_ground': return new SpikeGround(scene, player, mods, field);
+    default: return null;
+  }
+}
+
+/** Раскладка: мобильность — ПКМ, остальные активные — Q, E, R, F в порядке получения */
+export function assignKeys(skills: Skill[]): void {
+  const keys = ['Q', 'E', 'R', 'F'];
+  let i = 0;
+  for (const s of skills) {
+    if (s.id === 'dash_cut') { (s as { key: string }).key = 'ПКМ'; continue; }
+    (s as { key: string }).key = keys[i++] ?? '—';
   }
 }
 

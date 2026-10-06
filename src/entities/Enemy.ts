@@ -25,6 +25,10 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   firstHitAt: number | null = null; // для TTK
   hitsTaken = 0;
   lastHitBy = ''; // источник последнего урона (для аналитики убийств)
+  slowUntil = 0;
+  slowMult = 1;
+  /** внешняя сила (тяга колодца), прибавляется к скорости на этот кадр */
+  pull = new Phaser.Math.Vector2();
   private strikeAngle = 0;
   private struck = false;
   private tele: Phaser.GameObjects.Graphics;
@@ -78,14 +82,21 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.destroy();
   }
 
+  applySlow(mult: number, ms: number) {
+    this.slowMult = Math.min(this.slowMult, mult);
+    this.slowUntil = Math.max(this.slowUntil, this.scene.time.now + ms);
+  }
+
   update(ctx: EnemyContext) {
     if (!this.active) return;
     const now = this.scene.time.now;
+    if (now >= this.slowUntil) this.slowMult = 1;
     const me = this.getCenter();
     const target = ctx.player.getCenter();
     const dist = Phaser.Math.Distance.BetweenPoints(me, target);
     const toTarget = Phaser.Math.Angle.BetweenPoints(me, target);
     const atk = this.def.attack;
+    const spd = this.speed * this.slowMult;
 
     switch (this.phase) {
       case 'chase': {
@@ -93,10 +104,10 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
           // держит дистанцию: отступает, если игрок близко; стреляет из зоны
           const want = atk.keepDistance;
           const dir = dist < want - 40 ? -1 : dist > want + 40 ? 1 : 0;
-          this.scene.physics.velocityFromRotation(toTarget, this.speed * dir, this.body!.velocity as Phaser.Math.Vector2);
+          this.scene.physics.velocityFromRotation(toTarget, spd * dir, this.body!.velocity as Phaser.Math.Vector2);
           if (dist <= atk.range) this.beginWindup(now, toTarget);
         } else {
-          this.scene.physics.velocityFromRotation(toTarget, this.speed, this.body!.velocity as Phaser.Math.Vector2);
+          this.scene.physics.velocityFromRotation(toTarget, spd, this.body!.velocity as Phaser.Math.Vector2);
           if (dist <= atk.range) this.beginWindup(now, toTarget);
         }
         break;
@@ -130,6 +141,11 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         break;
       }
     }
+    if (this.pull.lengthSq() > 0 && !this.isBoss && this.def.role !== 'tank') {
+      const v = this.body!.velocity as Phaser.Math.Vector2;
+      v.add(this.pull);
+      this.pull.set(0, 0);
+    } else this.pull.set(0, 0);
     this.drawHp();
   }
 

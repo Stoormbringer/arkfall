@@ -3,7 +3,7 @@ import ENEMIES from '../data/enemies.json';
 import ROOMS from '../data/rooms.json';
 import F from '../data/formulas.json';
 import type { EnemyDef, EnemyId } from '../data/types';
-import { enemyCount } from '../core/formulas';
+import { enemyCount, xpBoss, xpMob } from '../core/formulas';
 import { Rng } from '../core/rng';
 import { Enemy } from '../entities/Enemy';
 import { Boss } from '../entities/Boss';
@@ -12,7 +12,8 @@ import { Player } from '../entities/Player';
 import { Projectile } from '../entities/Projectile';
 import { RunState } from '../run/RunState';
 import { offerFacets } from '../run/facetOffer';
-import { DashCut, MVP_SKILLS, Spark, type Battlefield, type Skill, type SkillView } from '../skills/skills';
+import { assignKeys, Barrier, createSkill, type Battlefield, type Skill, type SkillView } from '../skills/skills';
+import { loadProgress as loadP } from '../meta/Progress';
 
 export interface ArenaSnapshot {
   act: number; roomInAct: number; roomsPerAct: number; acts: number;
@@ -23,11 +24,12 @@ export interface ArenaSnapshot {
   cleared: boolean; dead: boolean; killer: string;
   hp: number; maxHp: number; dodgeCharges: number; dodgeMax: number; dodge01: number;
   rhythm: number; rank: number; shards: number; nextRankAt: number;
-  skills: SkillView[]; facets: string[];
+  skills: SkillView[]; facets: string[]; xp: number; hasRhythm: boolean;
   ttkSamples: { role: string; sec: number; hits: number }[];
 }
 
-interface Zone { x: number; y: number; r: number; until: number; nextTick: number; dps: number; tickSec: number; gfx: Phaser.GameObjects.Arc }
+interface Zone { x: number; y: number; r: number; until: number; nextTick: number; dps: number; tickSec: number; slow: number; gfx: Phaser.GameObjects.Arc }
+interface PlayerBullet extends Projectile { onHit?: (e: Enemy, x: number, y: number) => void }
 
 const ROOM = ROOMS.arena;
 const RUN = ROOMS.run;
@@ -37,8 +39,9 @@ export class ArenaScene extends Phaser.Scene {
   private player!: Player;
   private enemies!: Phaser.GameObjects.Group;
   private bullets!: Phaser.Physics.Arcade.Group;
+  private playerBullets!: Phaser.Physics.Arcade.Group;
   private rng!: Rng;
-  private keys!: Record<'W' | 'A' | 'S' | 'D' | 'UP' | 'LEFT' | 'DOWN' | 'RIGHT' | 'SPACE' | 'SHIFT' | 'R' | 'Q' | 'P' | 'ESC', Phaser.Input.Keyboard.Key>;
+  private keys!: Record<'W' | 'A' | 'S' | 'D' | 'UP' | 'LEFT' | 'DOWN' | 'RIGHT' | 'SPACE' | 'SHIFT' | 'R' | 'Q' | 'E' | 'F' | 'P' | 'ESC', Phaser.Input.Keyboard.Key>;
   private skills: Skill[] = [];
   private zones: Zone[] = [];
   private advancing = false;
@@ -58,7 +61,8 @@ export class ArenaScene extends Phaser.Scene {
     if (data.run) this.run = data.run;
     else {
       const q = new URLSearchParams(location.search);
-      this.run = new RunState(Number(q.get('tier') ?? 1), Number(q.get('seed') ?? Date.now() % 1_000_000), MVP_SKILLS);
+      const skills = q.get('skills')?.split(',') ?? loadP().skills; // ?skills=dash_cut,spark — для тестов
+      this.run = new RunState(Number(q.get('tier') ?? 1), Number(q.get('seed') ?? Date.now() % 1_000_000), skills);
       this.run.room = Number(q.get('room') ?? 1);
     }
     this.rng = new Rng(this.run.seed * 31 + this.run.room);
@@ -81,15 +85,33 @@ export class ArenaScene extends Phaser.Scene {
     this.player.hasRhythm = this.run.skills.includes('blood_rhythm');
     this.enemies = this.add.group();
     this.bullets = this.physics.add.group({ classType: Projectile, maxSize: 200 });
+    this.playerBullets = this.physics.add.group({ classType: Projectile, maxSize: 200 });
 
     const field: Battlefield = {
       enemies: () => this.enemies.getChildren() as Enemy[],
       damage: (e, amount, from, kb, source) => this.damageEnemy(e, amount, from, kb, source),
-      addZone: (x, y, r, dur, dps, tick) => this.addZone(x, y, r, dur, dps, tick),
+      addZone: (x, y, r, dur, dps, tick, slow) => this.addZone(x, y, r, dur, dps, tick, slow ?? 1),
+      shootPlayer: (x, y, a, sp, d, onHit) => {
+        const b = this.playerBullets.get(x, y) as PlayerBullet | null;
+        if (!b) return;
+        b.fire(x, y, a, sp, d, 'player');
+        b.setTint(0xf5f1e6);
+        b.onHit = onHit;
+      },
     };
     this.skills = [];
-    if (this.run.skills.includes('dash_cut')) this.skills.push(new DashCut(this, this.player, this.run.mods, field));
-    if (this.run.skills.includes('spark')) this.skills.push(new Spark(this, this.player, this.run.mods, field));
+    for (const id of this.run.skills) { const s = createSkill(id, this, this.player, this.run.mods, field); if (s) this.skills.push(s); }
+    assignKeys(this.skills);
+
+    this.physics.add.overlap(this.playerBullets, this.enemies, (b, en) => {
+      const bullet = b as PlayerBullet, e = en as Enemy;
+      if (!bullet.active || !e.active) return;
+      const x = bullet.x, y = bullet.y, cb = bullet.onHit;
+      bullet.onHit = undefined;
+      bullet.kill();
+      this.damageEnemy(e, bullet.damage, new Phaser.Math.Vector2(this.player.x, this.player.y), 60, 'Осколочный выстрел');
+      cb?.(e, x, y);
+    });
 
     this.physics.add.overlap(this.player, this.bullets, (_p, b) => {
       const bullet = b as Projectile;
@@ -99,7 +121,7 @@ export class ArenaScene extends Phaser.Scene {
     });
     this.physics.add.collider(this.enemies, this.enemies);
 
-    this.keys = this.input.keyboard!.addKeys('W,A,S,D,UP,LEFT,DOWN,RIGHT,SPACE,SHIFT,R,Q,P,ESC') as typeof this.keys;
+    this.keys = this.input.keyboard!.addKeys('W,A,S,D,UP,LEFT,DOWN,RIGHT,SPACE,SHIFT,R,Q,E,F,P,ESC') as typeof this.keys;
     this.input.mouse?.disableContextMenu();
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (p.rightButtonDown() && !this.dead && !this.choosing) this.skills.find((s) => s.id === 'dash_cut')?.tryCast(new Phaser.Math.Vector2(p.worldX, p.worldY));
@@ -144,7 +166,8 @@ export class ArenaScene extends Phaser.Scene {
     const strike = this.player.handleInput({ move, aim, attack: ptr.leftButtonDown(), dodge }, locked);
     if (strike) this.resolveMelee(strike);
     this.player.regen(deltaMs / 1000);
-    if (Phaser.Input.Keyboard.JustDown(this.keys.Q)) this.skills.find((s) => s.id === 'spark')?.tryCast(aim);
+    for (const k of ['Q', 'E', 'R', 'F'] as const)
+      if (Phaser.Input.Keyboard.JustDown(this.keys[k])) this.skills.find((s) => s.key === k)?.tryCast(aim);
     for (const s of this.skills) s.update(deltaMs / 1000);
     this.updateZones();
 
@@ -176,6 +199,7 @@ export class ArenaScene extends Phaser.Scene {
     if (!killed && this.run.mods.executeBelow > 0 && e.hp / e.maxHp < this.run.mods.executeBelow) { e.die(); killed = true; }
     if (killed) {
       this.run.kills++;
+      this.run.xp += Math.round(e.isBoss ? xpBoss(this.run.tier, this.run.room) : xpMob(this.run.tier, this.run.room));
       if (e.firstHitAt !== null && !e.isBoss) this.run.ttkSamples.push({ role: e.id, sec: (this.time.now - e.firstHitAt) / 1000, hits: e.hitsTaken });
       this.run.addShards(e.isBoss ? F.shards.boss : F.shards.mob);
       if (e.isBoss) this.boss = null;
@@ -201,6 +225,9 @@ export class ArenaScene extends Phaser.Scene {
 
   private hitPlayer(dmg: number, source: string) {
     if (this.dead) return;
+    if (this.player.isInvulnerable) return;
+    const barrier = this.skills.find((s): s is Barrier => s instanceof Barrier);
+    if (barrier) { dmg = barrier.absorb(dmg); if (dmg <= 0) { this.player.grantInvuln(150); return; } }
     if (!this.player.takeDamage(dmg, source)) return;
     if (this.player.hp <= 0) {
       if (this.run.mods.lastBreath && !this.run.mods.lastBreathUsed) {
@@ -219,9 +246,10 @@ export class ArenaScene extends Phaser.Scene {
 
   // ---------- зоны (Шлейф пепла и будущие) ----------
 
-  private addZone(x: number, y: number, r: number, durationSec: number, dps: number, tickSec: number) {
-    const gfx = this.add.circle(x, y, r, 0xff7a3c, 0.22).setStrokeStyle(1, 0xff7a3c, 0.6).setDepth(3);
-    this.zones.push({ x, y, r, until: this.time.now + durationSec * 1000, nextTick: this.time.now, dps, tickSec, gfx });
+  private addZone(x: number, y: number, r: number, durationSec: number, dps: number, tickSec: number, slow = 1) {
+    const color = slow < 1 ? 0x7fd48a : 0xff7a3c;
+    const gfx = this.add.circle(x, y, r, color, 0.22).setStrokeStyle(1, color, 0.6).setDepth(3);
+    this.zones.push({ x, y, r, until: this.time.now + durationSec * 1000, nextTick: this.time.now, dps, tickSec, slow, gfx });
   }
 
   private updateZones() {
@@ -232,7 +260,10 @@ export class ArenaScene extends Phaser.Scene {
         z.nextTick = now + z.tickSec * 1000;
         const from = new Phaser.Math.Vector2(z.x, z.y);
         for (const e of [...(this.enemies.getChildren() as Enemy[])])
-          if (e.active && Phaser.Math.Distance.BetweenPoints(from, e) <= z.r + e.def.radius) this.damageEnemy(e, z.dps * z.tickSec * this.run.mods.damageMult, from, 0, 'Шлейф пепла');
+          if (e.active && Phaser.Math.Distance.BetweenPoints(from, e) <= z.r + e.def.radius) {
+            if (z.slow < 1) e.applySlow(z.slow, z.tickSec * 1000 + 100);
+            this.damageEnemy(e, z.dps * z.tickSec * this.run.mods.damageMult, from, 0, z.slow < 1 ? 'Шипастая земля' : 'Шлейф пепла');
+          }
       }
       return true;
     });
@@ -336,7 +367,7 @@ export class ArenaScene extends Phaser.Scene {
     if (this.finished) return;
     this.finished = true;
     const before = loadProgress();
-    const after = recordRun(before, this.run.tier, this.run.room, won);
+    const after = recordRun(before, this.run.tier, this.run.room, won, this.run.xp);
     this.time.delayedCall(won ? 400 : 1200, () =>
       this.scene.launch('summary', { run: this.run, won, killer: this.killer, progress: after, unlockedNew: after.unlockedTier > before.unlockedTier }));
   }
@@ -350,7 +381,7 @@ export class ArenaScene extends Phaser.Scene {
       alive: this.enemies.countActive(true), cleared: this.cleared, dead: this.dead, killer: this.killer,
       hp: this.player.hp, maxHp: this.player.maxHp, dodgeCharges: this.player.dodgeCharges, dodgeMax: this.player.dodgeMax, dodge01: this.player.dodgeCooldown01,
       rhythm: this.player.rhythmStacks, rank: this.run.rank, shards: this.run.shards, nextRankAt: this.run.nextRankAt,
-      skills: this.skills.map((s) => s.view()), facets: this.run.facets, ttkSamples: this.run.ttkSamples,
+      skills: this.skills.map((s) => s.view()), facets: this.run.facets, xp: this.run.xp, hasRhythm: this.player.hasRhythm, ttkSamples: this.run.ttkSamples,
     };
     this.game.events.emit('arena-state', snap);
     (globalThis as unknown as { __arkfall?: ArenaSnapshot }).__arkfall = snap; // для e2e-тестов

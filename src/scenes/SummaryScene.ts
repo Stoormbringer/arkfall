@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { facetDef } from '../run/mods';
 import type { RunState } from '../run/RunState';
 import type { Progress } from '../meta/Progress';
+import { levelFromXp } from '../meta/Level';
 
 export interface SummaryData { run: RunState; won: boolean; killer: string; progress: Progress; unlockedNew: boolean }
 
@@ -22,6 +23,7 @@ export class SummaryScene extends Phaser.Scene {
       `Тир ${d.run.tier} · сид ${d.run.seed}`,
       `Комнат пройдено: ${d.won ? d.run.room : d.run.room - 1} · Убито: ${d.run.kills} · Ранг: ${d.run.rank}`,
       `TTK обычных (медиана): ${med.toFixed(2)} с`,
+      `Опыт: +${Math.round(d.won ? d.run.xp * 1.3 : d.run.xp)}${d.won ? ' (с бонусом завершения +30 %)' : ''} → уровень ${levelFromXp(d.progress.xp).level}` + (d.progress.pendingMilestones.length ? `  · новый скилл ждёт в хабе` : ''),
       '',
       'Грани забега:',
       d.run.facets.length ? d.run.facets.map((id) => '  ' + facetDef(id).name).join('\n') : '  —',

@@ -3,6 +3,7 @@ import ROOMS from './data/rooms.json';
 import { ArenaScene } from './scenes/ArenaScene';
 import { BootScene } from './scenes/BootScene';
 import { HudScene } from './scenes/HudScene';
+import { FacetScene } from './scenes/FacetScene';
 
 new Phaser.Game({
   type: Phaser.AUTO,
@@ -13,5 +14,5 @@ new Phaser.Game({
   pixelArt: false,
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   physics: { default: 'arcade', arcade: { debug: new URLSearchParams(location.search).has('debug') } },
-  scene: [BootScene, ArenaScene, HudScene],
+  scene: [BootScene, ArenaScene, HudScene, FacetScene],
 });

@@ -1,0 +1,61 @@
+import FACETS from '../data/facets.json';
+import type { FacetDef } from '../data/types';
+
+/** Агрегированные эффекты взятых Граней. Скиллы и бой читают только этот объект. */
+export interface Mods {
+  damageMult: number;
+  cooldownMult: number;
+  maxHpDelta: number;
+  dodgeChargesBonus: number;
+  shardMult: number;
+  healPerKill: number;
+  executeBelow: number;
+  lastBreath: boolean;
+  lastBreathUsed: boolean;
+  echoOfPain: boolean;
+  echoOfPainArmed: boolean;
+  dash: { ashTrail: boolean; secondWind: boolean };
+  spark: { extraJumps: number; grounding: boolean };
+  rhythm: { decaySec: number };
+}
+
+export const defaultMods = (): Mods => ({
+  damageMult: 1, cooldownMult: 1, maxHpDelta: 0, dodgeChargesBonus: 0, shardMult: 1,
+  healPerKill: 0, executeBelow: 0, lastBreath: false, lastBreathUsed: false,
+  echoOfPain: false, echoOfPainArmed: false,
+  dash: { ashTrail: false, secondWind: false },
+  spark: { extraJumps: 0, grounding: false },
+  rhythm: { decaySec: 1 },
+});
+
+/** Грани, у которых есть реализация в коде. Остальные не попадают в предложение. */
+export const IMPLEMENTED_FACETS = [
+  'ash_trail', 'second_wind', 'overload', 'grounding', 'metronome',
+  'reserve', 'shard_catcher', 'blood_on_blade', 'echo_of_pain', 'silence',
+  'glass_fury', 'brittle_enemies', 'last_breath',
+] as const;
+
+export type FacetId = keyof typeof FACETS;
+
+export function facetDef(id: string): FacetDef {
+  return (FACETS as unknown as Record<string, FacetDef>)[id];
+}
+
+export function applyFacet(m: Mods, id: string): void {
+  const p = facetDef(id).params as Record<string, number | boolean>;
+  switch (id) {
+    case 'ash_trail': m.dash.ashTrail = true; break;
+    case 'second_wind': m.dash.secondWind = true; break;
+    case 'overload': m.spark.extraJumps += p.jumps as number; break;
+    case 'grounding': m.spark.grounding = true; break;
+    case 'metronome': m.rhythm.decaySec = p.decaySec as number; break;
+    case 'reserve': m.dodgeChargesBonus += p.dodgeCharges as number; break;
+    case 'shard_catcher': m.shardMult *= p.shardMult as number; break;
+    case 'blood_on_blade': m.healPerKill += p.healPerKill as number; break;
+    case 'echo_of_pain': m.echoOfPain = true; break;
+    case 'silence': m.cooldownMult *= p.cooldownMult as number; break;
+    case 'glass_fury': m.damageMult *= p.damageMult as number; m.maxHpDelta += p.maxHp as number; break;
+    case 'brittle_enemies': m.executeBelow = Math.max(m.executeBelow, p.executeBelow as number); break;
+    case 'last_breath': m.lastBreath = true; break;
+  }
+}

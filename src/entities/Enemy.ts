@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { EnemyDef, EnemyId } from '../data/types';
 import { enemyDmg, enemyHp, enemySpd, telegraphSec } from '../core/formulas';
 
-type Phase = 'chase' | 'windup' | 'strike' | 'recover';
+type Phase = 'chase' | 'windup' | 'strike' | 'recover' | 'stunned';
 
 export interface EnemyContext {
   player: Phaser.Physics.Arcade.Sprite;
@@ -22,6 +22,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   phaseUntil = 0;
   firstHitAt: number | null = null; // для TTK
   hitsTaken = 0;
+  lastHitBy = ''; // источник последнего урона (для аналитики убийств)
   private strikeAngle = 0;
   private struck = false;
   private tele: Phaser.GameObjects.Graphics;
@@ -57,6 +58,15 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.scene.time.delayedCall(60, () => this.active && this.clearTint());
     if (this.hp <= 0) { this.die(); return true; }
     return false;
+  }
+
+  stun(ms: number) {
+    if (!this.active) return;
+    this.tele.clear();
+    this.phase = 'stunned';
+    this.phaseUntil = this.scene.time.now + ms;
+    this.setVelocity(0, 0);
+    this.setTint(0xa0c8ff);
   }
 
   die() {
@@ -109,6 +119,11 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       case 'recover': {
         this.setVelocity(0, 0);
         if (now >= this.phaseUntil) this.phase = 'chase';
+        break;
+      }
+      case 'stunned': {
+        this.setVelocity(0, 0);
+        if (now >= this.phaseUntil) { this.clearTint(); this.phase = 'chase'; }
         break;
       }
     }

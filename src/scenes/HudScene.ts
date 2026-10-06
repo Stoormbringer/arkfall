@@ -32,7 +32,7 @@ export class HudScene extends Phaser.Scene {
     this.facetsText = this.add.text(24, 696, '', { ...style, fontSize: '12px', color: '#9aa4b8' }).setOrigin(0, 1);
     this.debug = this.add.text(1256, 24, '', { ...style, color: '#9aa4b8', align: 'right' }).setOrigin(1, 0);
     this.banner = this.add.text(640, 330, '', { ...style, fontSize: '28px', align: 'center' }).setOrigin(0.5);
-    this.add.text(640, 696, 'WASD — движение · ЛКМ — удар · ПКМ — рывок · Q — разряд · Space — уклонение · R — заново', { ...style, color: '#6f7890', fontSize: '12px' }).setOrigin(0.5, 1);
+    this.add.text(640, 696, 'WASD — движение · ЛКМ — удар · ПКМ — рывок · Q — разряд · Space — уклонение · Esc/P — пауза · R — заново', { ...style, color: '#6f7890', fontSize: '12px' }).setOrigin(0.5, 1);
     this.game.events.on('arena-state', (s: ArenaSnapshot) => this.render(s));
   }
 
@@ -69,7 +69,11 @@ export class HudScene extends Phaser.Scene {
       fmtRole('rusher', by('rusher')), fmtRole('shooter', by('shooter')), fmtRole('tank', by('tank')),
     ]);
 
-    if (s.dead) this.banner.setText(`Убит: ${s.killer}\n\nR — новый забег`);
+    if (s.lastError) this.banner.setText(`Ошибка (пришли её в чат):\n${s.lastError}`).setColor('#ff6b5a');
+    else this.banner.setColor('#e8e4d8');
+    if (s.lastError) return;
+    if (s.paused) this.banner.setText('Пауза\n\nEsc / P — продолжить');
+    else if (s.dead) this.banner.setText(`Убит: ${s.killer}\n\nR — новый забег`);
     else if (s.cleared) this.banner.setText('Комната пройдена');
     else this.banner.setText('');
   }

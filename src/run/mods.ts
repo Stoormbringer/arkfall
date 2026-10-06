@@ -9,6 +9,8 @@ export interface Mods {
   dodgeChargesBonus: number;
   shardMult: number;
   healPerKill: number;
+  lifesteal: number;
+  regenMult: number;
   executeBelow: number;
   lastBreath: boolean;
   lastBreathUsed: boolean;
@@ -21,7 +23,7 @@ export interface Mods {
 
 export const defaultMods = (): Mods => ({
   damageMult: 1, cooldownMult: 1, maxHpDelta: 0, dodgeChargesBonus: 0, shardMult: 1,
-  healPerKill: 0, executeBelow: 0, lastBreath: false, lastBreathUsed: false,
+  healPerKill: 0, lifesteal: 0, regenMult: 1, executeBelow: 0, lastBreath: false, lastBreathUsed: false,
   echoOfPain: false, echoOfPainArmed: false,
   dash: { ashTrail: false, secondWind: false },
   spark: { extraJumps: 0, grounding: false },
@@ -32,7 +34,7 @@ export const defaultMods = (): Mods => ({
 export const IMPLEMENTED_FACETS = [
   'ash_trail', 'second_wind', 'overload', 'grounding', 'metronome',
   'reserve', 'shard_catcher', 'blood_on_blade', 'echo_of_pain', 'silence',
-  'glass_fury', 'brittle_enemies', 'last_breath',
+  'glass_fury', 'brittle_enemies', 'last_breath', 'thirst', 'breather',
 ] as const;
 
 export type FacetId = keyof typeof FACETS;
@@ -57,5 +59,7 @@ export function applyFacet(m: Mods, id: string): void {
     case 'glass_fury': m.damageMult *= p.damageMult as number; m.maxHpDelta += p.maxHp as number; break;
     case 'brittle_enemies': m.executeBelow = Math.max(m.executeBelow, p.executeBelow as number); break;
     case 'last_breath': m.lastBreath = true; break;
+    case 'thirst': m.lifesteal += p.lifesteal as number; break;
+    case 'breather': m.regenMult *= p.regenMult as number; break;
   }
 }

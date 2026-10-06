@@ -13,6 +13,8 @@ import { offerFacets } from '../run/facetOffer';
 import { DashCut, MVP_SKILLS, Spark, type Battlefield, type Skill, type SkillView } from '../skills/skills';
 
 export interface ArenaSnapshot {
+  paused: boolean;
+  lastError: string;
   tier: number; room: number; seed: number; kills: number; alive: number;
   cleared: boolean; dead: boolean; killer: string;
   hp: number; maxHp: number; dodgeCharges: number; dodgeMax: number; dodge01: number;
@@ -31,7 +33,7 @@ export class ArenaScene extends Phaser.Scene {
   private enemies!: Phaser.GameObjects.Group;
   private bullets!: Phaser.Physics.Arcade.Group;
   private rng!: Rng;
-  private keys!: Record<'W' | 'A' | 'S' | 'D' | 'UP' | 'LEFT' | 'DOWN' | 'RIGHT' | 'SPACE' | 'SHIFT' | 'R' | 'Q', Phaser.Input.Keyboard.Key>;
+  private keys!: Record<'W' | 'A' | 'S' | 'D' | 'UP' | 'LEFT' | 'DOWN' | 'RIGHT' | 'SPACE' | 'SHIFT' | 'R' | 'Q' | 'P' | 'ESC', Phaser.Input.Keyboard.Key>;
   private skills: Skill[] = [];
   private zones: Zone[] = [];
   private advancing = false;
@@ -41,6 +43,7 @@ export class ArenaScene extends Phaser.Scene {
   private killer = '';
   private choosing = false;
   private currentOffer: string[] = [];
+  private choosingSince = 0;
 
   constructor() { super('arena'); }
 
@@ -84,15 +87,17 @@ export class ArenaScene extends Phaser.Scene {
     });
     this.physics.add.collider(this.enemies, this.enemies);
 
-    this.keys = this.input.keyboard!.addKeys('W,A,S,D,UP,LEFT,DOWN,RIGHT,SPACE,SHIFT,R,Q') as typeof this.keys;
+    this.keys = this.input.keyboard!.addKeys('W,A,S,D,UP,LEFT,DOWN,RIGHT,SPACE,SHIFT,R,Q,P,ESC') as typeof this.keys;
     this.input.mouse?.disableContextMenu();
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (p.rightButtonDown() && !this.dead && !this.choosing) this.skills.find((s) => s.id === 'dash_cut')?.tryCast(new Phaser.Math.Vector2(p.worldX, p.worldY));
     });
 
-    this.game.events.off('facet-chosen').off('facet-reroll');
+    this.game.events.off('facet-chosen').off('facet-reroll').off('resume-arena');
     this.game.events.on('facet-chosen', (id: string) => this.onFacetChosen(id));
     this.game.events.on('facet-reroll', () => this.onFacetReroll());
+    this.game.events.on('resume-arena', () => { this.scene.resume(); this.emit(); });
+    this.events.on('resume', () => this.emit());
 
     this.spawnWave();
     this.emit();
@@ -103,7 +108,20 @@ export class ArenaScene extends Phaser.Scene {
       if (Phaser.Input.Keyboard.JustDown(this.keys.R)) this.scene.restart({ run: new RunState(this.run.tier, this.run.seed + 1, MVP_SKILLS) });
       return;
     }
-    if (this.choosing) return;
+    if (this.choosing) {
+      // сторож: экран выбора потерялся — перезапускаем
+      if (!this.scene.isActive('facet') && this.time.now - this.choosingSince > 600) {
+        this.choosing = false;
+        this.nextStep();
+      }
+      return;
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.keys.P) || Phaser.Input.Keyboard.JustDown(this.keys.ESC)) {
+      this.scene.pause();
+      this.scene.launch('pause');
+      this.emit(true);
+      return;
+    }
 
     const move = new Phaser.Math.Vector2(
       (this.keys.D.isDown || this.keys.RIGHT.isDown ? 1 : 0) - (this.keys.A.isDown || this.keys.LEFT.isDown ? 1 : 0),
@@ -116,6 +134,7 @@ export class ArenaScene extends Phaser.Scene {
 
     const strike = this.player.handleInput({ move, aim, attack: ptr.leftButtonDown(), dodge }, locked);
     if (strike) this.resolveMelee(strike);
+    this.player.regen(deltaMs / 1000);
     if (Phaser.Input.Keyboard.JustDown(this.keys.Q)) this.skills.find((s) => s.id === 'spark')?.tryCast(aim);
     for (const s of this.skills) s.update(deltaMs / 1000);
     this.updateZones();
@@ -138,7 +157,9 @@ export class ArenaScene extends Phaser.Scene {
   private damageEnemy(e: Enemy, amount: number, from: Phaser.Math.Vector2, knockback: number, source: string): boolean {
     if (!e.active) return false;
     e.lastHitBy = source;
+    const dealt = Math.min(amount, Math.max(0, e.hp));
     let killed = e.takeDamage(amount, from, knockback);
+    if (this.run.mods.lifesteal > 0 && source === 'Дуговой клинок') this.player.heal(dealt * this.run.mods.lifesteal);
     if (!killed && this.run.mods.executeBelow > 0 && e.hp / e.maxHp < this.run.mods.executeBelow) { e.die(); killed = true; }
     if (killed) {
       this.run.kills++;
@@ -253,7 +274,9 @@ export class ArenaScene extends Phaser.Scene {
   private nextStep() {
     if (this.run.pendingOffers > 0) {
       this.choosing = true;
+      this.choosingSince = this.time.now;
       this.player.setVelocity(0, 0);
+      if (this.scene.isActive('facet')) this.scene.stop('facet');
       this.currentOffer = offerFacets(this.rng, { ownedSkills: this.run.skills, ownedFacets: this.run.facets, rank: this.run.rank });
       if (this.currentOffer.length === 0) { this.run.pendingOffers = 0; this.nextStep(); return; }
       this.scene.launch('facet', { offer: this.currentOffer, rerollsLeft: this.run.rerollsLeft, rank: this.run.rank });
@@ -279,11 +302,12 @@ export class ArenaScene extends Phaser.Scene {
     if (!this.choosing || this.run.rerollsLeft <= 0) return;
     this.run.rerollsLeft--;
     this.choosing = false;
-    this.nextStep();
+    this.time.delayedCall(150, () => this.nextStep());
   }
 
-  private emit() {
+  private emit(paused = false) {
     const snap: ArenaSnapshot = {
+      paused, lastError: (globalThis as unknown as { __arkfallError?: string }).__arkfallError ?? '',
       tier: this.run.tier, room: this.run.room, seed: this.run.seed, kills: this.run.kills,
       alive: this.enemies.countActive(true), cleared: this.cleared, dead: this.dead, killer: this.killer,
       hp: this.player.hp, maxHp: this.player.maxHp, dodgeCharges: this.player.dodgeCharges, dodgeMax: this.player.dodgeMax, dodge01: this.player.dodgeCooldown01,

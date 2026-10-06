@@ -17,5 +17,9 @@
     "cooldownSec": 0.3,
     "knockback": 70
   },
-  "spawnInvulnSec": 1.0
+  "spawnInvulnSec": 1.0,
+  "regen": {
+    "hpPerSec": 1,
+    "afterNoDamageSec": 4
+  }
 }

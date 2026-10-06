@@ -34,6 +34,7 @@ export class DashCut extends Skill {
   private dir = new Phaser.Math.Vector2();
   private start = new Phaser.Math.Vector2();
   private hit = new Set<Enemy>();
+  private dashing = false;
   private trail: Phaser.GameObjects.Graphics;
 
   constructor(scene: Phaser.Scene, player: Player, mods: Mods, field: Battlefield) {
@@ -53,6 +54,7 @@ export class DashCut extends Skill {
     this.charges--;
     const durationMs = 200;
     this.until = now + durationMs;
+    this.dashing = true;
     this.start.set(this.player.x, this.player.y);
     this.dir.copy(aim).subtract(this.start).normalize();
     if (this.dir.lengthSq() === 0) this.dir.set(1, 0);
@@ -70,7 +72,7 @@ export class DashCut extends Skill {
       if (this.charges < D.resource.charges) this.rechargeAt = now + this.rechargeMs;
     }
     if (!this.locksControl) {
-      if (this.until && now >= this.until && now < this.until + 20) this.endDash();
+      if (this.dashing) this.endDash();
       return;
     }
     const me = new Phaser.Math.Vector2(this.player.x, this.player.y);
@@ -92,7 +94,7 @@ export class DashCut extends Skill {
         this.field.addZone(this.start.x + this.dir.x * D.base.length * t, this.start.y + this.dir.y * D.base.length * t, 28, 2, 16, 0.5);
       }
     }
-    this.until = 0;
+    this.dashing = false;
   }
 }
 

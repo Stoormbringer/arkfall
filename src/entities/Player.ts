@@ -19,6 +19,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   maxHp: number;
   invulnUntil = 0;
   lastHitBy = '';
+  lastDamagedAt = -1e9;
+  private regenAcc = 0;
   // уклонение с зарядами (GDD: «Запас» +1 заряд)
   dodgeMax: number;
   dodgeCharges: number;
@@ -68,6 +70,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   /** Возвращает параметры удара, если атака состоялась */
+  /** Пассивная регенерация вне боя: hpPerSec после afterNoDamageSec без урона (GDD: поощряет уклонение) */
+  regen(dtSec: number) {
+    if (this.hp <= 0 || this.hp >= this.maxHp) return;
+    if (this.scene.time.now - this.lastDamagedAt < P.regen.afterNoDamageSec * 1000) return;
+    this.regenAcc += P.regen.hpPerSec * this.mods.regenMult * dtSec;
+    if (this.regenAcc >= 1) { const n = Math.floor(this.regenAcc); this.regenAcc -= n; this.heal(n); }
+  }
+
   handleInput(input: PlayerInput, locked: boolean): Strike | null {
     const now = this.scene.time.now;
     if (this.hasRhythm && this.rhythmStacks > 0 && now - this.rhythmLastHit > this.mods.rhythm.decaySec * 1000) this.rhythmStacks = 0;
@@ -107,6 +117,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (this.isInvulnerable) return false;
     this.hp = Math.max(0, this.hp - amount);
     this.lastHitBy = source;
+    this.lastDamagedAt = this.scene.time.now;
     if (this.mods.echoOfPain) this.mods.echoOfPainArmed = true;
     this.invulnUntil = this.scene.time.now + 350;
     this.scene.cameras.main.shake(80, 0.004);

@@ -1,0 +1,30 @@
+{
+  "_comment": "Коэффициенты GDD §5–6. Правятся без пересборки логики.",
+  "xp": {
+    "early": { "k": 60, "exp": 1.5, "maxLevel": 100 },
+    "mid": { "k": 60000, "exp": 2.0, "maxLevel": 300 },
+    "late": { "k": 540000, "exp": 2.2 },
+    "mobBase": 40,
+    "roomGrowth": 0.03,
+    "eliteMult": 6,
+    "bossMult": 40,
+    "bossBonus": 2000,
+    "tierLinearStep": 0.5,
+    "tierLinearUntil": 10,
+    "tierExpBase": 1.15
+  },
+  "shards": { "k": 6, "exp": 1.3, "mob": 1, "elite": 6, "boss": 30 },
+  "enemy": {
+    "hpRoomGrowth": 0.06,
+    "hpTierExp": 1.25,
+    "dmgRoomGrowth": 0.025,
+    "dmgTierExp": 0.9,
+    "spdTierStep": 0.025,
+    "spdCap": 1.3,
+    "countRoomGrowth": 0.03,
+    "countTierStep": 0.1,
+    "countCap": 2.0
+  },
+  "telegraph": { "baseSeconds": 0.6, "minSeconds": 0.4, "tierStep": 0.02 },
+  "ttkTarget": { "min": 0.6, "max": 1.5 }
+}

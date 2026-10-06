@@ -1,0 +1,35 @@
+{
+  "rusher": {
+    "name": "Рвущийся",
+    "role": "melee",
+    "color": "0xe0553a",
+    "radius": 12,
+    "hp": 40,
+    "dmg": 12,
+    "speed": 170,
+    "attack": { "kind": "lunge", "range": 120, "windupSec": 0.6, "lungeSpeed": 620, "lungeSec": 0.22, "recoverSec": 0.5 },
+    "xpWeight": 1
+  },
+  "shooter": {
+    "name": "Стрелок",
+    "role": "ranged",
+    "color": "0x6fb7ff",
+    "radius": 11,
+    "hp": 30,
+    "dmg": 10,
+    "speed": 130,
+    "attack": { "kind": "shoot", "range": 420, "keepDistance": 240, "windupSec": 0.6, "projectileSpeed": 320, "recoverSec": 0.9 },
+    "xpWeight": 1
+  },
+  "tank": {
+    "name": "Молот",
+    "role": "tank",
+    "color": "0xc9a227",
+    "radius": 20,
+    "hp": 140,
+    "dmg": 28,
+    "speed": 85,
+    "attack": { "kind": "slam", "range": 90, "aoeRadius": 95, "windupSec": 0.85, "recoverSec": 1.1 },
+    "xpWeight": 2
+  }
+}

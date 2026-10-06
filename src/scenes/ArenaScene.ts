@@ -13,6 +13,7 @@ import { Projectile } from '../entities/Projectile';
 import { RunState } from '../run/RunState';
 import { offerFacets, offerStartFacets } from '../run/facetOffer';
 import { DOORS, ELITE_ROOM, HEAL_DOOR_HP, offerDoors, SHARDS_DOOR_BONUS, type DoorReward } from '../run/doors';
+import { ITEMS, keepOnDeath, rollItem } from '../run/loot';
 import { assignKeys, Barrier, createSkill, type Battlefield, type Skill, type SkillView } from '../skills/skills';
 import { loadProgress as loadP } from '../meta/Progress';
 
@@ -26,7 +27,7 @@ export interface ArenaSnapshot {
   cleared: boolean; dead: boolean; killer: string;
   hp: number; maxHp: number; dodgeCharges: number; dodgeMax: number; dodge01: number;
   rhythm: number; rank: number; shards: number; nextRankAt: number;
-  skills: SkillView[]; facets: string[]; xp: number; hasRhythm: boolean;
+  skills: SkillView[]; facets: string[]; xp: number; hasRhythm: boolean; backpack: string[]; toast: string;
   ttkSamples: { role: string; sec: number; hits: number }[];
 }
 
@@ -57,6 +58,7 @@ export class ArenaScene extends Phaser.Scene {
   private overlayData: { key: 'facet' | 'door'; data: object } | null = null;
   private doorPending = false;
   private waveStarted = false;
+  private toast = '';
   private boss: Boss | null = null;
   private finished = false;
 
@@ -66,8 +68,9 @@ export class ArenaScene extends Phaser.Scene {
     if (data.run) this.run = data.run;
     else {
       const q = new URLSearchParams(location.search);
-      const skills = q.get('skills')?.split(',') ?? loadP().skills; // ?skills=dash_cut,spark — для тестов
-      this.run = new RunState(Number(q.get('tier') ?? 1), Number(q.get('seed') ?? Date.now() % 1_000_000), skills);
+      const p = loadP();
+      const skills = q.get('skills')?.split(',') ?? p.skills; // ?skills=dash_cut,spark — для тестов
+      this.run = new RunState(Number(q.get('tier') ?? 1), Number(q.get('seed') ?? Date.now() % 1_000_000), skills, Object.values(p.equipped));
       this.run.room = Number(q.get('room') ?? 1);
     }
     this.rng = new Rng(this.run.seed * 31 + this.run.room);
@@ -245,7 +248,7 @@ export class ArenaScene extends Phaser.Scene {
     if (!killed && this.run.mods.executeBelow > 0 && e.hp / e.maxHp < this.run.mods.executeBelow) { e.die(); killed = true; }
     if (killed) {
       this.run.kills++;
-      this.run.xp += Math.round(e.isBoss ? xpBoss(this.run.tier, this.run.room) : xpMob(this.run.tier, this.run.room));
+      this.run.xp += Math.round((e.isBoss ? xpBoss(this.run.tier, this.run.room) : xpMob(this.run.tier, this.run.room)) * this.run.mods.xpMult);
       if (e.firstHitAt !== null && !e.isBoss) this.run.ttkSamples.push({ role: e.id, sec: (this.time.now - e.firstHitAt) / 1000, hits: e.hitsTaken });
       this.run.addShards(e.isBoss ? F.shards.boss : F.shards.mob);
       if (e.isBoss) this.boss = null;
@@ -325,6 +328,7 @@ export class ArenaScene extends Phaser.Scene {
       this.telegraphSpawn(pos, () => {
         this.pendingSpawns--;
         this.boss = new Boss(this, pos.x, pos.y, 'boss_hammer', ENEMIES.boss_hammer as EnemyDef, this.run.tier, this.run.room);
+        this.boss.windupMs *= this.run.mods.enemyWindupMult;
         this.enemies.add(this.boss);
       });
       return;
@@ -343,6 +347,7 @@ export class ArenaScene extends Phaser.Scene {
       this.telegraphSpawn(pos, () => {
         this.pendingSpawns--;
         const e = new Enemy(this, pos.x, pos.y, id, ENEMIES[id] as EnemyDef, this.run.tier, this.run.room);
+        e.windupMs *= this.run.mods.enemyWindupMult;
         if (this.isEliteRoom) { e.hp = Math.round(e.hp * ELITE_ROOM.hpMult); (e as { maxHp: number }).maxHp = e.hp; e.setScale(1.15); }
         this.enemies.add(e);
       });
@@ -373,6 +378,12 @@ export class ArenaScene extends Phaser.Scene {
     this.advancing = true;
     this.cleared = true;
     this.run.hp = this.player.hp;
+    // Лут (GDD §H): босс — всегда, Логово элиты — 50 %, Сокровищница — 35 %
+    const dropChance = this.isBossRoom ? F.loot.bossDropChance : this.run.nextDoor === 'elite' ? F.loot.eliteRoomDropChance : this.run.nextDoor === 'shards' ? F.loot.treasuryDropChance : 0;
+    if (dropChance > 0 && this.rng.next() < dropChance) {
+      const id = rollItem(this.rng, this.run.tier, this.run.backpack);
+      if (id) { this.run.backpack.push(id); this.showToast(`Найдено: ${ITEMS[id].name} — ${ITEMS[id].text}`); }
+    }
     // Награды дверей — после зачистки
     switch (this.run.nextDoor) {
       case 'shards': this.run.addShards(SHARDS_DOOR_BONUS); break;
@@ -458,14 +469,20 @@ export class ArenaScene extends Phaser.Scene {
     this.time.delayedCall(150, () => this.nextStep());
   }
 
+  private showToast(text: string) {
+    this.toast = text;
+    this.time.delayedCall(3500, () => { if (this.toast === text) this.toast = ''; });
+  }
+
   /** Конец забега: запись прогресса (GDD §9) и экран итогов */
   private endRun(won: boolean) {
     if (this.finished) return;
     this.finished = true;
     const before = loadProgress();
-    const after = recordRun(before, this.run.tier, this.run.room, won, this.run.xp);
+    const loot = won ? this.run.backpack : keepOnDeath(this.run.backpack);
+    const after = recordRun(before, this.run.tier, this.run.room, won, this.run.xp, loot);
     this.time.delayedCall(won ? 400 : 1200, () =>
-      this.scene.launch('summary', { run: this.run, won, killer: this.killer, progress: after, unlockedNew: after.unlockedTier > before.unlockedTier }));
+      this.scene.launch('summary', { run: this.run, won, killer: this.killer, progress: after, unlockedNew: after.unlockedTier > before.unlockedTier, loot }));
   }
 
   private emit(paused = false) {
@@ -478,7 +495,7 @@ export class ArenaScene extends Phaser.Scene {
       alive: this.enemies.countActive(true), cleared: this.cleared, dead: this.dead, killer: this.killer,
       hp: this.player.hp, maxHp: this.player.maxHp, dodgeCharges: this.player.dodgeCharges, dodgeMax: this.player.dodgeMax, dodge01: this.player.dodgeCooldown01,
       rhythm: this.player.rhythmStacks, rank: this.run.rank, shards: this.run.shards, nextRankAt: this.run.nextRankAt,
-      skills: this.skills.map((s) => s.view()), facets: this.run.facets, xp: this.run.xp, hasRhythm: this.player.hasRhythm, ttkSamples: this.run.ttkSamples,
+      skills: this.skills.map((s) => s.view()), facets: this.run.facets, xp: this.run.xp, hasRhythm: this.player.hasRhythm, backpack: this.run.backpack, toast: this.toast, ttkSamples: this.run.ttkSamples,
     };
     this.game.events.emit('arena-state', snap);
     (globalThis as unknown as { __arkfall?: ArenaSnapshot }).__arkfall = snap; // для e2e-тестов

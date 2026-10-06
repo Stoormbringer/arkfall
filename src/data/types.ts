@@ -35,6 +35,8 @@ export interface SkillDef {
 }
 
 export type FacetRarity = 'common' | 'rare' | 'epic';
+export type ItemSlot = 'weapon' | 'armor' | 'accessory' | 'artifact';
+export interface ItemDef { name: string; slot: ItemSlot; rarity: FacetRarity; mods: Record<string, number>; text: string }
 export interface FacetDef {
   name: string;
   rarity: FacetRarity;

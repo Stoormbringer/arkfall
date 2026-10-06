@@ -1,5 +1,5 @@
 import FACETS from '../data/facets.json';
-import type { FacetDef } from '../data/types';
+import type { FacetDef, ItemDef } from '../data/types';
 
 /** Агрегированные эффекты взятых Рун. Скиллы и бой читают только этот объект. */
 export interface Mods {
@@ -19,6 +19,14 @@ export interface Mods {
   dash: { ashTrail: boolean; secondWind: boolean };
   spark: { extraJumps: number; grounding: boolean };
   rhythm: { decaySec: number };
+  // экипировка (GDD §H)
+  moveSpeedMult: number;
+  meleeRadiusMult: number;
+  attackSpeedMult: number;
+  damageTakenMult: number;
+  xpMult: number;
+  enemyWindupMult: number;
+  knockbackMult: number;
 }
 
 export const defaultMods = (): Mods => ({
@@ -28,7 +36,24 @@ export const defaultMods = (): Mods => ({
   dash: { ashTrail: false, secondWind: false },
   spark: { extraJumps: 0, grounding: false },
   rhythm: { decaySec: 1 },
+  moveSpeedMult: 1, meleeRadiusMult: 1, attackSpeedMult: 1, damageTakenMult: 1, xpMult: 1, enemyWindupMult: 1, knockbackMult: 1,
 });
+
+/** Экипированный предмет: множители перемножаются, плоские бонусы складываются */
+export function applyItem(m: Mods, item: ItemDef): void {
+  for (const [k, v] of Object.entries(item.mods)) {
+    switch (k) {
+      case 'maxHpDelta': m.maxHpDelta += v; break;
+      case 'dodgeChargesBonus': m.dodgeChargesBonus += v; break;
+      case 'healPerKill': m.healPerKill += v; break;
+      case 'lifesteal': m.lifesteal += v; break;
+      case 'executeBelow': m.executeBelow = Math.max(m.executeBelow, v); break;
+      case 'damageMult': case 'cooldownMult': case 'shardMult': case 'regenMult': case 'moveSpeedMult': case 'meleeRadiusMult':
+      case 'attackSpeedMult': case 'damageTakenMult': case 'xpMult': case 'enemyWindupMult': case 'knockbackMult':
+        (m as unknown as Record<string, number>)[k] *= v; break;
+    }
+  }
+}
 
 /** Руны, у которых есть реализация в коде. Остальные не попадают в предложение. */
 export const IMPLEMENTED_FACETS = [

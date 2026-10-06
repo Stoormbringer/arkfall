@@ -39,8 +39,11 @@ export class TitleScene extends Phaser.Scene {
     btn.on('pointerout', () => btn.setFillStyle(0x161a23));
     btn.on('pointerdown', () => this.dive());
 
-    this.levelText = this.add.text(640, 560, '', { ...mono, fontSize: '15px', color: '#f0c75e', align: 'center' }).setOrigin(0.5);
-    this.statsText = this.add.text(640, 610, '', { ...mono, fontSize: '13px', color: '#9aa4b8', align: 'center' }).setOrigin(0.5);
+    this.levelText = this.add.text(640, 590, '', { ...mono, fontSize: '15px', color: '#f0c75e', align: 'center' }).setOrigin(0.5);
+    const gearBtn = this.add.rectangle(640, 548, 220, 36, 0x161a23).setStrokeStyle(1, 0xf0c75e).setInteractive({ useHandCursor: true });
+    this.add.text(640, 548, 'Снаряжение  (I)', { ...mono, fontSize: '14px' }).setOrigin(0.5);
+    gearBtn.on('pointerdown', () => this.scene.start('gear'));
+    this.statsText = this.add.text(640, 630, '', { ...mono, fontSize: '13px', color: '#9aa4b8', align: 'center' }).setOrigin(0.5);
     this.add.text(640, 690, 'Забег: 3 акта × 10 комнат, босс в конце каждого акта. Живой выход после третьего босса открывает следующий Тир. · Ctrl+Shift+Del — сброс прогресса', { ...mono, fontSize: '11px', color: '#6f7890' }).setOrigin(0.5);
 
     const kb = this.input.keyboard!;
@@ -48,6 +51,7 @@ export class TitleScene extends Phaser.Scene {
     kb.on('keydown-RIGHT', () => { this.tier = Math.min(this.progress.unlockedTier, this.tier + 1); this.render(); });
     kb.on('keydown-S', () => { this.seed = Math.floor(Math.random() * 1_000_000); this.render(); });
     kb.on('keydown-ENTER', () => this.dive());
+    kb.on('keydown-I', () => this.scene.start('gear'));
     kb.on('keydown-DELETE', (e: KeyboardEvent) => { if (e.ctrlKey && e.shiftKey) { this.progress = resetProgress(); this.tier = 1; this.render(); } });
     this.render();
   }
@@ -59,7 +63,7 @@ export class TitleScene extends Phaser.Scene {
     const lv = levelFromXp(p.xp);
     const sk = p.skills.length ? p.skills.map((id) => SKILLS[id]?.name ?? id).join(' · ') : 'пока только клинок и уклонение — первый скилл на 10 уровне';
     this.levelText.setText(`Уровень ${lv.level} · ${Math.floor(lv.into)}/${Math.ceil(lv.need)} опыта\nСкиллы: ${sk}`);
-    this.statsText.setText(`Открыто Тиров: ${p.unlockedTier} · Забегов: ${p.runs} · Побед: ${p.wins} · Лучшая комната: ${p.bestRoom}`);
+    this.statsText.setText(`Открыто Тиров: ${p.unlockedTier} · Забегов: ${p.runs} · Побед: ${p.wins} · Лучшая комната: ${p.bestRoom} · Предметов: ${p.inventory.length}`);
   }
 
   private diving = false;
@@ -67,6 +71,6 @@ export class TitleScene extends Phaser.Scene {
     if (this.diving) return;
     this.diving = true;
     for (const k of ['arena', 'hud', 'facet', 'door', 'pause', 'summary']) if (this.scene.isActive(k) || this.scene.isPaused(k)) this.scene.stop(k);
-    this.scene.start('arena', { run: new RunState(this.tier, this.seed, this.progress.skills) });
+    this.scene.start('arena', { run: new RunState(this.tier, this.seed, this.progress.skills, Object.values(this.progress.equipped)) });
   }
 }

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { EnemyDef, EnemyId } from '../data/types';
-import { enemyDmg, enemyHp, enemySpd, telegraphSec } from '../core/formulas';
+import { enemyDmg, enemyHp, enemyHpHeavy, enemySpd, telegraphSec } from '../core/formulas';
 
 type Phase = 'chase' | 'windup' | 'strike' | 'recover' | 'stunned';
 
@@ -45,7 +45,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.setCircle(def.radius, 0, 0);
     this.setCollideWorldBounds(true);
     this.setDepth(8);
-    this.maxHp = Math.round(enemyHp(def.hp, tier, room));
+    this.maxHp = Math.round(def.role === 'tank' ? enemyHpHeavy(def.hp, tier, room) : enemyHp(def.hp, tier, room));
     this.hp = this.maxHp;
     this.dmg = Math.round(enemyDmg(def.dmg, tier, room));
     this.speed = enemySpd(def.speed, tier);

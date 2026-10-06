@@ -1,0 +1,26 @@
+{
+  "_comment": "GDD §H (MVP). Предметы без уровня: только множители и малые плоские бонусы (GDD §3 п.8). slot: weapon|armor|accessory|artifact.",
+  "jagged_blade":    { "name": "Зазубренный клинок", "slot": "weapon", "rarity": "common", "mods": { "damageMult": 1.10 }, "text": "Урон +10 %" },
+  "long_blade":      { "name": "Длинный клинок", "slot": "weapon", "rarity": "common", "mods": { "meleeRadiusMult": 1.15 }, "text": "Дальность удара +15 %" },
+  "reaper_blade":    { "name": "Клинок жнеца", "slot": "weapon", "rarity": "rare", "mods": { "damageMult": 1.15, "lifesteal": 0.03 }, "text": "Урон +15 %, вампиризм 3 %" },
+  "tide_hammer":     { "name": "Молот прилива", "slot": "weapon", "rarity": "rare", "mods": { "damageMult": 1.08, "knockbackMult": 2.0 }, "text": "Урон +8 %, отбрасывание ×2" },
+  "abyss_blade":     { "name": "Клинок бездны", "slot": "weapon", "rarity": "epic", "mods": { "damageMult": 1.20, "attackSpeedMult": 1.10 }, "text": "Урон +20 %, скорость атаки +10 %" },
+
+  "leather_armor":   { "name": "Кожаный доспех", "slot": "armor", "rarity": "common", "mods": { "maxHpDelta": 15 }, "text": "+15 HP" },
+  "plate_armor":     { "name": "Пластинчатый доспех", "slot": "armor", "rarity": "common", "mods": { "maxHpDelta": 30, "moveSpeedMult": 0.95 }, "text": "+30 HP, скорость −5 %" },
+  "wanderer_armor":  { "name": "Доспех странника", "slot": "armor", "rarity": "rare", "mods": { "maxHpDelta": 20, "regenMult": 1.5 }, "text": "+20 HP, регенерация ×1,5" },
+  "mirror_cuirass":  { "name": "Зеркальная кираса", "slot": "armor", "rarity": "rare", "mods": { "maxHpDelta": 20, "damageTakenMult": 0.90 }, "text": "+20 HP, получаемый урон −10 %" },
+  "ark_carapace":    { "name": "Панцирь Ковчега", "slot": "armor", "rarity": "epic", "mods": { "maxHpDelta": 40, "damageTakenMult": 0.90 }, "text": "+40 HP, получаемый урон −10 %" },
+
+  "wind_boots":      { "name": "Сапоги ветра", "slot": "accessory", "rarity": "common", "mods": { "moveSpeedMult": 1.10 }, "text": "Скорость +10 %" },
+  "deft_gloves":     { "name": "Перчатки ловкача", "slot": "accessory", "rarity": "common", "mods": { "cooldownMult": 0.92 }, "text": "Откаты −8 %" },
+  "shard_ring":      { "name": "Кольцо осколков", "slot": "accessory", "rarity": "rare", "mods": { "shardMult": 1.20 }, "text": "Осколков +20 %" },
+  "pupil_amulet":    { "name": "Амулет ученика", "slot": "accessory", "rarity": "rare", "mods": { "xpMult": 1.15 }, "text": "Опыт +15 %" },
+  "double_step":     { "name": "Браслет двойного шага", "slot": "accessory", "rarity": "epic", "mods": { "dodgeChargesBonus": 1 }, "text": "+1 заряд уклонения" },
+
+  "ash_ember":       { "name": "Пепельный уголь", "slot": "artifact", "rarity": "common", "mods": { "regenMult": 1.3 }, "text": "Регенерация ×1,3" },
+  "mirror_shard":    { "name": "Осколок зеркала", "slot": "artifact", "rarity": "common", "mods": { "damageMult": 1.05, "cooldownMult": 0.95 }, "text": "Урон +5 %, откаты −5 %" },
+  "abyss_heart":     { "name": "Сердце бездны", "slot": "artifact", "rarity": "rare", "mods": { "healPerKill": 1 }, "text": "+1 HP за убийство" },
+  "warden_eye":      { "name": "Глаз сторожа", "slot": "artifact", "rarity": "rare", "mods": { "enemyWindupMult": 1.15 }, "text": "Замахи врагов на 15 % дольше" },
+  "first_diver_seal":{ "name": "Печать первого ныряльщика", "slot": "artifact", "rarity": "epic", "mods": { "executeBelow": 0.15 }, "text": "Враги ниже 15 % HP гибнут от любого удара" }
+}

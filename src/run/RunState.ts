@@ -1,6 +1,7 @@
 import F from '../data/formulas.json';
 import { shardsForRank } from '../core/formulas';
-import { applyFacet, defaultMods, type Mods } from './mods';
+import { applyFacet, applyItem, defaultMods, type Mods } from './mods';
+import { ITEMS } from './loot';
 
 /** Состояние забега, живущее между комнатами (передаётся через scene.restart) */
 export class RunState {
@@ -21,11 +22,13 @@ export class RunState {
   rerollsLeft = F.facetOffer.rerollsPerAct;
   readonly skills: string[];
   readonly facets: string[] = [];
+  readonly backpack: string[] = [];
   readonly mods: Mods = defaultMods();
   readonly ttkSamples: { role: string; sec: number; hits: number }[] = [];
 
-  constructor(tier: number, seed: number, skills: string[]) {
+  constructor(tier: number, seed: number, skills: string[], equipped: string[] = []) {
     this.tier = tier; this.seed = seed; this.skills = skills;
+    for (const id of equipped) if (ITEMS[id]) applyItem(this.mods, ITEMS[id]);
   }
 
   get nextRankAt() { return shardsForRank(this.rank + 1); }

@@ -29,6 +29,9 @@ export const shardsForRank = (k: number) => F.shards.k * k ** F.shards.exp;
 /** Статы врагов, GDD §6.2 */
 export const enemyHp = (base: number, tier: number, room: number) =>
   base * (1 + F.enemy.hpRoomGrowth * room) * tier ** F.enemy.hpTierExp;
+/** Тяжёлые враги (роль tank) растут по комнатам мягче — иначе Молот к 6-й комнате уходит из коридора TTK */
+export const enemyHpHeavy = (base: number, tier: number, room: number) =>
+  base * (1 + F.enemy.hpRoomGrowthHeavy * room) * tier ** F.enemy.hpTierExp;
 export const enemyDmg = (base: number, tier: number, room: number) =>
   base * (1 + F.enemy.dmgRoomGrowth * room) * tier ** F.enemy.dmgTierExp;
 export const enemySpd = (base: number, tier: number) =>

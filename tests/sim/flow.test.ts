@@ -58,7 +58,7 @@ describe('поток забега (headless)', () => {
 });
 
 describe('смерть и босс (headless)', () => {
-  it('смерть → итоги → Enter → хаб → Enter → новый забег со стартовой Рунаю', async () => {
+  it('смерть → итоги → Enter → хаб → Enter → новый забег со стартовой Руной', async () => {
     await startRun('?tier=1&seed=42');
     const arena = sim.game.scene.getScene('arena') as unknown as { hitPlayer: (d: number, s: string) => void; player: { invulnUntil: number } };
     arena.player.invulnUntil = 0;
@@ -85,5 +85,23 @@ describe('смерть и босс (headless)', () => {
     killAll(sim);
     sim.step(1500);
     expect(sim.active('facet') || sim.active('door')).toBe(true);
+  }, 30_000);
+});
+
+describe('лут (headless)', () => {
+  it('после босса предмет попадает в рюкзак, а после победы/смерти — в инвентарь', async () => {
+    sim = await Sim.create('?tier=1&seed=42&room=10');
+    sim.step(2800);
+    killAll(sim);
+    sim.step(1500);
+    expect(sim.snap!.backpack.length).toBe(1);
+    // смерть сразу: половина (из 1 — 1) едет домой
+    const arena = sim.game.scene.getScene('arena') as unknown as { hitPlayer: (d: number, s: string) => void; player: { invulnUntil: number } };
+    for (let i = 0; i < 5 && sim.active('facet'); i++) { sim.key('Digit1', KEYS.ONE); sim.step(400); }
+    if (sim.active('door')) { sim.key('Digit1', KEYS.ONE); sim.step(2800); }
+    arena.player.invulnUntil = 0; arena.hitPlayer(9999, 'тест');
+    sim.step(2000);
+    const inv = JSON.parse(localStorage.getItem('arkfall.progress.v1')!).inventory as string[];
+    expect(inv.length).toBe(1);
   }, 30_000);
 });

@@ -40,7 +40,8 @@
     "spdCap": 1.3,
     "countRoomGrowth": 0.03,
     "countTierStep": 0.1,
-    "countCap": 2.0
+    "countCap": 2.0,
+    "hpRoomGrowthHeavy": 0.04
   },
   "telegraph": {
     "baseSeconds": 0.6,
@@ -127,5 +128,18 @@
     ],
     "offerCount": 3,
     "missingCategoryWeight": 2
+  },
+  "loot": {
+    "bossDropChance": 1.0,
+    "eliteRoomDropChance": 0.5,
+    "treasuryDropChance": 0.35,
+    "rarityWeights": {
+      "common": 70,
+      "rare": 25,
+      "epic": 5
+    },
+    "epicPerTier": 2,
+    "rarePerTier": 2,
+    "keepOnDeath": "best_half"
   }
 }

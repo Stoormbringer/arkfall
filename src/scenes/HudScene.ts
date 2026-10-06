@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import ENEMIES from '../data/enemies.json';
 import { ttkTarget } from '../core/formulas';
 import { facetDef } from '../run/mods';
+import { ITEMS } from '../run/loot';
 import type { ArenaSnapshot } from './ArenaScene';
 
 const median = (xs: number[]) => {
@@ -22,6 +23,8 @@ export class HudScene extends Phaser.Scene {
   private debug!: Phaser.GameObjects.Text;
   private banner!: Phaser.GameObjects.Text;
   private bossText!: Phaser.GameObjects.Text;
+  private toast!: Phaser.GameObjects.Text;
+  private bagText!: Phaser.GameObjects.Text;
 
   constructor() { super('hud'); }
 
@@ -32,6 +35,8 @@ export class HudScene extends Phaser.Scene {
     this.skillsText = this.add.text(24, 72, '', { ...style, color: '#c9d1e0' });
     this.facetsText = this.add.text(24, 696, '', { ...style, fontSize: '12px', color: '#9aa4b8' }).setOrigin(0, 1);
     this.debug = this.add.text(1256, 24, '', { ...style, color: '#9aa4b8', align: 'right' }).setOrigin(1, 0);
+    this.toast = this.add.text(640, 120, '', { ...style, fontSize: '16px', color: '#f0c75e', backgroundColor: '#0b0d12cc', padding: { x: 10, y: 6 } }).setOrigin(0.5);
+    this.bagText = this.add.text(1256, 696, '', { ...style, fontSize: '12px', color: '#9aa4b8', align: 'right' }).setOrigin(1, 1);
     this.bossText = this.add.text(640, 652, '', { ...style, fontSize: '13px', color: '#e0a62f' }).setOrigin(0.5, 1);
     this.banner = this.add.text(640, 330, '', { ...style, fontSize: '28px', align: 'center' }).setOrigin(0.5);
     this.add.text(640, 696, 'WASD — движение · ЛКМ — удар · ПКМ — рывок · Q — разряд · Space — уклонение · Esc/P — пауза', { ...style, color: '#6f7890', fontSize: '12px' }).setOrigin(0.5, 1);
@@ -67,6 +72,8 @@ export class HudScene extends Phaser.Scene {
     if (s.rhythm > 0 || s.hasRhythm) sk.push(`Ритм ${'|'.repeat(s.rhythm)}${'.'.repeat(5 - s.rhythm)}`);
     this.skillsText.setText(sk.join('    '));
     this.facetsText.setText(s.facets.length ? 'Руны: ' + s.facets.map((id) => facetDef(id).name).join(' · ') : '');
+    this.toast.setText(s.toast);
+    this.bagText.setText(s.backpack.length ? `Рюкзак: ${s.backpack.map((id) => ITEMS[id].name).join(' · ')}` : '');
 
     const by = (r: string) => s.ttkSamples.filter((x) => x.role === r);
     const common = s.ttkSamples.filter((x) => x.role !== 'tank');

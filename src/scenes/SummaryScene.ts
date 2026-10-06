@@ -3,8 +3,9 @@ import { facetDef } from '../run/mods';
 import type { RunState } from '../run/RunState';
 import type { Progress } from '../meta/Progress';
 import { levelFromXp } from '../meta/Level';
+import { ITEMS } from '../run/loot';
 
-export interface SummaryData { run: RunState; won: boolean; killer: string; progress: Progress; unlockedNew: boolean }
+export interface SummaryData { run: RunState; won: boolean; killer: string; progress: Progress; unlockedNew: boolean; loot: string[] }
 
 /** Экран итогов забега (GDD §2 шаг 10). */
 export class SummaryScene extends Phaser.Scene {
@@ -27,8 +28,11 @@ export class SummaryScene extends Phaser.Scene {
       '',
       'Руны забега:',
       d.run.facets.length ? d.run.facets.map((id) => '  ' + facetDef(id).name).join('\n') : '  —',
+      '',
+      d.won ? 'Добыча (вся):' : `Добыча (лучшая половина из ${d.run.backpack.length}):`,
+      d.loot.length ? d.loot.map((id) => '  ' + ITEMS[id].name).join('\n') : '  —',
     ];
-    this.add.text(640, 240, lines.join('\n'), { ...mono, fontSize: '16px', align: 'center', lineSpacing: 6 }).setOrigin(0.5, 0);
+    this.add.text(640, 210, lines.join('\n'), { ...mono, fontSize: '15px', align: 'center', lineSpacing: 4 }).setOrigin(0.5, 0);
 
     this.add.text(640, 640, 'Enter или клик — в хаб', { ...mono, fontSize: '18px' }).setOrigin(0.5);
     const toHub = () => {

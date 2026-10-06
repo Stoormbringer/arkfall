@@ -58,7 +58,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const total = P.dodge.cooldownSec * 1000 * this.mods.cooldownMult;
     return Phaser.Math.Clamp(1 - (this.dodgeRechargeAt - this.scene.time.now) / total, 0, 1);
   }
-  get attackSpeedMult() { return 1 + this.rhythmStacks * (RHYTHM.attackSpeedPerStack as number); }
+  get attackSpeedMult() { return (1 + this.rhythmStacks * (RHYTHM.attackSpeedPerStack as number)) * this.mods.attackSpeedMult; }
 
   grantInvuln(ms: number) { this.invulnUntil = Math.max(this.invulnUntil, this.scene.time.now + ms); }
 
@@ -98,7 +98,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     if (locked) { /* рывок управляет скоростью сам */ }
     else if (this.isDodging) this.setVelocity(this.dodgeDir.x * P.dodge.speed, this.dodgeDir.y * P.dodge.speed);
-    else this.setVelocity(input.move.x * P.speed, input.move.y * P.speed);
+    else this.setVelocity(input.move.x * P.speed * this.mods.moveSpeedMult, input.move.y * P.speed * this.mods.moveSpeedMult);
     this.setAlpha(this.isInvulnerable ? 0.55 : 1);
 
     if (input.attack && now >= this.attackReadyAt && !this.isDodging && !locked) {
@@ -108,14 +108,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.drawSwing(angle, arcRad);
       let damage = P.weapon.damage * this.mods.damageMult;
       if (this.mods.echoOfPainArmed) { damage *= 1.5; this.mods.echoOfPainArmed = false; }
-      return { angle, radius: P.weapon.radius, arcRad, damage, knockback: P.weapon.knockback };
+      return { angle, radius: P.weapon.radius * this.mods.meleeRadiusMult, arcRad, damage, knockback: P.weapon.knockback * this.mods.knockbackMult };
     }
     return null;
   }
 
   takeDamage(amount: number, source: string): boolean {
     if (this.isInvulnerable) return false;
-    this.hp = Math.max(0, this.hp - amount);
+    this.hp = Math.max(0, this.hp - amount * this.mods.damageTakenMult);
     this.lastHitBy = source;
     this.lastDamagedAt = this.scene.time.now;
     if (this.mods.echoOfPain) this.mods.echoOfPainArmed = true;

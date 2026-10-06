@@ -3,6 +3,7 @@ import { ArenaScene, type ArenaSnapshot } from '../../src/scenes/ArenaScene';
 import { BootScene } from '../../src/scenes/BootScene';
 import { DoorScene } from '../../src/scenes/DoorScene';
 import { FacetScene } from '../../src/scenes/FacetScene';
+import { GearScene } from '../../src/scenes/GearScene';
 import { HudScene } from '../../src/scenes/HudScene';
 import { PauseScene } from '../../src/scenes/PauseScene';
 import { SkillChoiceScene } from '../../src/scenes/SkillChoiceScene';
@@ -24,7 +25,7 @@ export class Sim {
       type: Phaser.HEADLESS, width: 1280, height: 720, parent: undefined,
       audio: { noAudio: true },
       physics: { default: 'arcade' },
-      scene: [BootScene, TitleScene, SkillChoiceScene, ArenaScene, HudScene, FacetScene, DoorScene, PauseScene, SummaryScene],
+      scene: [BootScene, TitleScene, SkillChoiceScene, GearScene, ArenaScene, HudScene, FacetScene, DoorScene, PauseScene, SummaryScene],
     });
     await new Promise<void>((res) => sim.game.events.once('ready', () => res()));
     sim.game.loop.stop();

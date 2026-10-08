@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { enemyCount, enemyHp, enemySpd, shardsForRank, tierMult, xpMob, xpToNext } from '../../src/core/formulas';
+import { enemyCount, enemyDmg, enemyHp, enemySpd, shardsForRank, tierMult, xpMob, xpToNext } from '../../src/core/formulas';
 
 describe('кривая опыта (GDD §5.2)', () => {
   it('сшита без скачков на 100 и 300', () => {
@@ -32,7 +32,7 @@ describe('доход опыта', () => {
 });
 
 describe('статы врагов (GDD §6.2)', () => {
-  it('HP растёт быстрее урона', () => expect(enemyHp(1, 10, 0)).toBeGreaterThan(17));
+  it('HP растёт с Тиром быстрее урона (hpTierExp > dmgTierExp)', () => expect(enemyHp(1, 10, 0)).toBeGreaterThan(enemyDmg(1, 10, 0)));
   it('скорость упирается в +30 %', () => expect(enemySpd(100, 50)).toBe(130));
   it('количество упирается в ×2', () => expect(enemyCount(10, 50, 0)).toBe(20));
 });

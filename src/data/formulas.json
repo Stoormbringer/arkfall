@@ -33,15 +33,16 @@
   },
   "enemy": {
     "hpRoomGrowth": 0.06,
-    "hpTierExp": 1.25,
+    "hpTierExp": 0.85,
     "dmgRoomGrowth": 0.025,
-    "dmgTierExp": 0.9,
+    "dmgTierExp": 0.6,
     "spdTierStep": 0.025,
     "spdCap": 1.3,
     "countRoomGrowth": 0.03,
     "countTierStep": 0.1,
     "countCap": 2.0,
-    "hpRoomGrowthHeavy": 0.04
+    "hpRoomGrowthHeavy": 0.04,
+    "_tierNote": "Пакет 29: hpTierExp 1,25→0,85 и dmgTierExp 0,9→0,6 — на Тире 3 Подрывник бил на 103 при 100 HP героя, Рвущийся жил 4,5 с базовым клинком"
   },
   "telegraph": {
     "baseSeconds": 0.6,
@@ -56,7 +57,11 @@
     "tank": {
       "min": 2.5,
       "max": 4.0
-    }
+    },
+    "buildDamagePerTier": 0.3,
+    "_buildNote": "Ожидаемый множитель урона героя от экипировки и Рун на Тире T: 1 + buildDamagePerTier·(T−1); так считаются ворота TTK в tests/unit/balance.test.ts",
+    "maxHitCommon01": 0.5,
+    "maxHitHeavy01": 0.9
   },
   "upgradeSlots": {
     "damage": [

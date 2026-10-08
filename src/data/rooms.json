@@ -39,6 +39,11 @@
   "run": {
     "acts": 3,
     "roomsPerAct": 10,
-    "bossRoomShards": 30
+    "bossRoomShards": 30,
+    "bossByAct": [
+      "boss_hammer",
+      "boss_lich",
+      "boss_warden"
+    ]
   }
 }

@@ -27,10 +27,21 @@ export interface EnemyDef {
   recoverVulnMult?: number;
   /** Щитоносец: урон с фронта ×N */
   shield?: { frontArcDeg: number; frontDamageMult: number };
-  boss?: { phase2At: number; phase2WindupMult: number; phase2RecoverSec: number; phase2AddsOnTransition: number; phase2RingBullets: number; phase2RingSpeed: number; phase2RingDelaySec: number; phase2RingDamageMult: number };
+  boss?: BossDef;
 }
 
-export type EnemyId = 'rusher' | 'shooter' | 'tank' | 'bomber' | 'lancer' | 'summoner' | 'shield' | 'orbiter' | 'boss_hammer';
+export interface BossDef {
+  kind: 'hammer' | 'lich' | 'warden';
+  phase2At: number; phase2WindupMult: number; phase2RecoverSec: number; phase2AddsOnTransition: number; addsId: 'rusher' | 'shooter' | 'lancer' | 'shield';
+  // hammer
+  phase2RingBullets?: number; phase2RingSpeed?: number; phase2RingDelaySec?: number; phase2RingDamageMult?: number;
+  // lich
+  summonEvery?: number; summonCount?: number; summonIdPhase1?: 'lancer' | 'shield' | 'rusher'; summonIdPhase2?: 'lancer' | 'shield' | 'rusher'; blinkRange?: number; blinkDistance?: number; blinkCooldownSec?: number; phase2Bullets?: number;
+  // warden
+  ringBullets?: number; ringSpeed?: number; ringDamageMult?: number; phase2ChainLunges?: number;
+}
+
+export type EnemyId = 'rusher' | 'shooter' | 'tank' | 'bomber' | 'lancer' | 'summoner' | 'shield' | 'orbiter' | 'boss_hammer' | 'boss_lich' | 'boss_warden';
 
 export type SkillCategory = 'melee' | 'ranged' | 'magic' | 'summon' | 'control' | 'defense' | 'mobility';
 export type UpgradeSlot = 'damage' | 'cooldown' | 'area' | 'duration' | 'projectiles' | 'charges' | 'unique';

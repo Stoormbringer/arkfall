@@ -22,6 +22,7 @@ export class SettingsScene extends Phaser.Scene {
     const kb = this.input.keyboard!;
     kb.on('keydown-ONE', () => this.toggle('shake')); kb.on('keydown-TWO', () => this.toggle('flash'));
     kb.on('keydown-THREE', () => this.cycleParticles()); kb.on('keydown-FOUR', () => this.toggle('corpses'));
+    kb.on('keydown-FIVE', () => this.cycleVolume('sfxVolume')); kb.on('keydown-SIX', () => this.cycleVolume('musicVolume'));
     kb.once('keydown-ESC', () => this.close());
     this.render();
   }
@@ -31,6 +32,13 @@ export class SettingsScene extends Phaser.Scene {
     if (this.fromArena) this.game.events.emit('settings-closed'); else this.scene.start('title');
   }
   private toggle(k: 'shake' | 'flash' | 'corpses') { this.s = saveSettings({ ...this.s, [k]: !this.s[k] }); this.render(); }
+  private cycleVolume(k: 'sfxVolume' | 'musicVolume') {
+    const steps = [0, 0.25, 0.5, 0.8, 1];
+    const i = steps.findIndex((v) => Math.abs(v - this.s[k]) < 0.01);
+    this.s = saveSettings({ ...this.s, [k]: steps[(i + 1) % steps.length] });
+    this.game.events.emit('settings-changed'); this.game.events.emit('sfx', 'ui');
+    this.render();
+  }
   private cycleParticles() {
     const order: Settings['particles'][] = ['full', 'low', 'off'];
     this.s = saveSettings({ ...this.s, particles: order[(order.indexOf(this.s.particles) + 1) % order.length] });
@@ -45,15 +53,17 @@ export class SettingsScene extends Phaser.Scene {
       ['2', 'Вспышка экрана при уроне', this.s.flash ? 'вкл' : 'выкл', () => this.toggle('flash')],
       ['3', 'Частицы', { full: 'полные', low: 'меньше', off: 'выкл' }[this.s.particles], () => this.cycleParticles()],
       ['4', 'Тела врагов', this.s.corpses ? 'остаются и тают' : 'исчезают', () => this.toggle('corpses')],
+      ['5', 'Громкость эффектов', `${Math.round(this.s.sfxVolume * 100)} %`, () => this.cycleVolume('sfxVolume')],
+      ['6', 'Громкость эмбиента', `${Math.round(this.s.musicVolume * 100)} %`, () => this.cycleVolume('musicVolume')],
     ];
     rows.forEach(([key, label, value, fn], i) => {
-      const y = 240 + i * 70;
+      const y = 210 + i * 58;
       const btn = this.add.rectangle(640, y, 560, 54, 0x161a23).setStrokeStyle(1, 0x3a4256).setInteractive({ useHandCursor: true });
       btn.on('pointerover', () => btn.setFillStyle(0x1f2430)); btn.on('pointerout', () => btn.setFillStyle(0x161a23)); btn.on('pointerdown', fn);
       this.layer.add(btn);
       this.layer.add(this.add.text(380, y, `(${key})  ${label}`, { ...mono, fontSize: '17px' }).setOrigin(0, 0.5));
       this.layer.add(this.add.text(900, y, value, { ...mono, fontSize: '17px', color: '#8fd3ff' }).setOrigin(1, 0.5));
     });
-    this.layer.add(this.add.text(640, 560, 'Сохраняется сразу. Тряска и вспышки — только ощущение, на бой не влияют', { ...mono, fontSize: '12px', color: '#6f7890' }).setOrigin(0.5));
+    this.layer.add(this.add.text(640, 580, 'Сохраняется сразу. Тряска и вспышки — только ощущение, на бой не влияют', { ...mono, fontSize: '12px', color: '#6f7890' }).setOrigin(0.5));
   }
 }

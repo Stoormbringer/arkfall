@@ -8,6 +8,7 @@ import { keepOnDeath } from '../run/loot';
 import { recordRun } from '../meta/Progress';
 import { echoRunTotal } from '../meta/echo';
 import { backdrop, button, mono, panel, UI } from '../ui/theme';
+import { heroGrowth, upgradePointsFree } from '../meta/hero';
 
 /** Стартовый экран: выбор Тира из открытых, сид, «Нырнуть». */
 export class TitleScene extends Phaser.Scene {
@@ -70,9 +71,11 @@ export class TitleScene extends Phaser.Scene {
     }
 
     const row = 470;
-    button(this, cx - 180, row, 170, 42, 'Снаряжение', { accent: UI.goldHex, hint: 'I', size: 14, onClick: () => this.scene.start('gear') });
-    button(this, cx, row, 170, 42, 'Лавка Ковчега', { accent: UI.iceHex, hint: 'L', size: 14, onClick: () => this.scene.start('hubshop') });
-    button(this, cx + 180, row, 170, 42, 'Настройки', { accent: UI.stoneHi, hint: 'O', size: 14, onClick: () => this.scene.start('settings') });
+    const free = upgradePointsFree(this.progress);
+    button(this, cx - 240, row, 150, 42, 'Снаряжение', { accent: UI.goldHex, hint: 'I', size: 13, onClick: () => this.scene.start('gear') });
+    button(this, cx - 80, row, 150, 42, free > 0 ? `Прокачка (+${free})` : 'Прокачка', { accent: free > 0 ? UI.crimsonHex : UI.iceHex, hint: 'U', size: 13, onClick: () => this.scene.start('upgrade') });
+    button(this, cx + 80, row, 150, 42, 'Лавка Ковчега', { accent: UI.iceHex, hint: 'L', size: 13, onClick: () => this.scene.start('hubshop') });
+    button(this, cx + 240, row, 150, 42, 'Настройки', { accent: UI.stoneHi, hint: 'O', size: 13, onClick: () => this.scene.start('settings') });
 
     this.levelText = this.add.text(cx, 530, '', mono(14, UI.gold, { align: 'center', lineSpacing: 4 })).setOrigin(0.5, 0);
     this.statsText = this.add.text(cx, 578, '', mono(12, UI.dim, { align: 'center', wordWrap: { width: 640 } })).setOrigin(0.5, 0);
@@ -88,6 +91,7 @@ export class TitleScene extends Phaser.Scene {
     kb.on('keydown-I', () => this.scene.start('gear'));
     kb.on('keydown-L', () => this.scene.start('hubshop'));
     kb.on('keydown-O', () => this.scene.start('settings'));
+    kb.on('keydown-U', () => this.scene.start('upgrade'));
     kb.on('keydown-DELETE', (e: KeyboardEvent) => { if (e.ctrlKey && e.shiftKey) { this.progress = resetProgress(); this.tier = 1; this.render(); } });
     this.render();
   }
@@ -99,7 +103,8 @@ export class TitleScene extends Phaser.Scene {
     this.seedText.setText(`сид ${this.seed}`);
     const lv = levelFromXp(p.xp);
     const sk = p.skills.length ? p.skills.map((id) => SKILLS[id]?.name ?? id).join(' · ') : 'пока только клинок и уклонение — первый скилл на 10 уровне';
-    this.levelText.setText(`Уровень ${lv.level} · ${Math.floor(lv.into)}/${Math.ceil(lv.need)} опыта\nСкиллы: ${sk}`);
+    const g = heroGrowth(lv.level);
+    this.levelText.setText(`Уровень ${lv.level} · ${Math.floor(lv.into)}/${Math.ceil(lv.need)} опыта · закалка: урон +${Math.round((g.damageMult - 1) * 100)} %, HP +${g.hpDelta}, откаты −${Math.round((1 - g.cooldownMult) * 100)} %\nСкиллы: ${sk}`);
     this.statsText.setText(`Забегов ${p.runs} · Побед ${p.wins} · Лучшая комната ${p.bestRoom} · Предметов ${p.inventory.length} · Эхо ${p.echo}`);
   }
 
@@ -119,6 +124,6 @@ export class TitleScene extends Phaser.Scene {
     const saved = loadRun();
     if (saved) { this.progress = recordRun(this.progress, saved.tier, saved.room, false, saved.xp, keepOnDeath(saved.backpack), echoRunTotal(saved.echo ?? 0, false)); clearRun(); }
     for (const k of ['arena', 'hud', 'facet', 'door', 'pause', 'summary']) if (this.scene.isActive(k) || this.scene.isPaused(k)) this.scene.stop(k);
-    this.scene.start('arena', { run: new RunState(this.tier, this.seed, this.progress.skills, this.progress.equipped) });
+    this.scene.start('arena', { run: new RunState(this.tier, this.seed, this.progress.skills, this.progress.equipped, levelFromXp(this.progress.xp).level, this.progress.upgrades ?? {}) });
   }
 }

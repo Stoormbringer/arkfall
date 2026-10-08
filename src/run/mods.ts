@@ -2,7 +2,13 @@ import FACETS from '../data/facets.json';
 import type { FacetDef, ItemDef } from '../data/types';
 
 /** Агрегированные эффекты взятых Рун. Скиллы и бой читают только этот объект. */
+/** Прокачка одного скилла: множители и штучные добавки */
+export interface SkillMods { damage: number; cooldown: number; area: number; duration: number; projectiles: number; charges: number }
+export const NO_SKILL_MODS: SkillMods = { damage: 1, cooldown: 1, area: 1, duration: 1, projectiles: 0, charges: 0 };
+
 export interface Mods {
+  /** прокачка по скиллам (пакет 31) */
+  skill: Record<string, SkillMods>;
   damageMult: number;
   cooldownMult: number;
   maxHpDelta: number;
@@ -40,6 +46,7 @@ export interface Mods {
 }
 
 export const defaultMods = (): Mods => ({
+  skill: {},
   damageMult: 1, cooldownMult: 1, maxHpDelta: 0, dodgeChargesBonus: 0, shardMult: 1,
   healPerKill: 0, lifesteal: 0, regenMult: 1, executeBelow: 0, lastBreath: false, lastBreathUsed: false,
   echoOfPain: false, echoOfPainArmed: false,

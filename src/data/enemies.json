@@ -179,7 +179,76 @@
       "phase2RingBullets": 6,
       "phase2RingSpeed": 190,
       "phase2RingDelaySec": 0.45,
-      "phase2RingDamageMult": 0.3
+      "phase2RingDamageMult": 0.3,
+      "kind": "hammer",
+      "addsId": "rusher"
+    }
+  },
+  "boss_lich": {
+    "name": "Костяной жрец",
+    "role": "ranged",
+    "color": "0x9b6bff",
+    "radius": 26,
+    "hp": 470,
+    "dmg": 12,
+    "speed": 125,
+    "attack": {
+      "kind": "volley",
+      "range": 520,
+      "orbitRadius": 330,
+      "windupSec": 0.8,
+      "projectileSpeed": 280,
+      "bullets": 3,
+      "spreadDeg": 16,
+      "recoverSec": 1.1
+    },
+    "xpWeight": 40,
+    "boss": {
+      "kind": "lich",
+      "phase2At": 0.5,
+      "phase2WindupMult": 0.9,
+      "phase2RecoverSec": 0.9,
+      "phase2AddsOnTransition": 2,
+      "addsId": "lancer",
+      "summonEvery": 4,
+      "summonCount": 2,
+      "summonIdPhase1": "lancer",
+      "summonIdPhase2": "shield",
+      "blinkRange": 150,
+      "blinkDistance": 320,
+      "blinkCooldownSec": 3.0,
+      "phase2Bullets": 5
+    }
+  },
+  "boss_warden": {
+    "name": "Страж Бездны",
+    "role": "tank",
+    "color": "0x5fd3c9",
+    "radius": 34,
+    "hp": 720,
+    "dmg": 24,
+    "speed": 110,
+    "attack": {
+      "kind": "lunge",
+      "range": 400,
+      "windupSec": 0.95,
+      "lungeSpeed": 720,
+      "lungeSec": 0.55,
+      "recoverSec": 1.3
+    },
+    "recoverVulnMult": 1.3,
+    "xpWeight": 40,
+    "boss": {
+      "kind": "warden",
+      "phase2At": 0.5,
+      "phase2WindupMult": 0.8,
+      "phase2RecoverSec": 0.6,
+      "phase2AddsOnTransition": 2,
+      "addsId": "shooter",
+      "ringBullets": 8,
+      "ringSpeed": 210,
+      "ringDamageMult": 0.35,
+      "phase2ChainLunges": 2
     }
   }
 }

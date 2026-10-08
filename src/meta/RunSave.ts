@@ -7,7 +7,7 @@ export function migrateRun(raw: unknown): RunSave | null {
   const s = raw as { v?: number } & Partial<Omit<RunSave, 'v'>>;
   if (!s || typeof s !== 'object') return null;
   if (s.v === 1) return { ...(s as unknown as RunSave), v: 2, gold: 0, goldEarned: 0, echo: 0 };
-  return s.v === 2 ? { ...(s as RunSave), echo: s.echo ?? 0 } : null;
+  return s.v === 2 ? { ...(s as RunSave), echo: s.echo ?? 0, level: s.level ?? 1, upgrades: s.upgrades ?? {} } : null;
 }
 
 export function loadRun(): RunSave | null {

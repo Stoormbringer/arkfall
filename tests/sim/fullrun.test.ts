@@ -39,7 +39,7 @@ describe('полный забег (headless, GDD §10 — ворота MVP)', ()
       }
       expect(bosses).toBe(3);
       expect(sim.active('summary')).toBe(true);
-      expect([...seen].sort()).toEqual(['bomber', 'boss_hammer', 'lancer', 'orbiter', 'rusher', 'shield', 'shooter', 'summoner', 'tank']);
+      expect([...seen].sort()).toEqual(['bomber', 'boss_hammer', 'boss_lich', 'boss_warden', 'lancer', 'orbiter', 'rusher', 'shield', 'shooter', 'summoner', 'tank']);
       const s = sim.snap!;
       expect(s.kills).toBeGreaterThan(200);
       expect(s.gold).toBeGreaterThan(0);

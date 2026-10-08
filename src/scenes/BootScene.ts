@@ -22,6 +22,8 @@ export class BootScene extends Phaser.Scene {
       const tex = this.textures.createCanvas('sprites', ATLAS.meta.size.w, ATLAS.meta.size.h);
       if (tex) for (const [name, f] of Object.entries(ATLAS.frames)) tex.add(name, 0, f.frame.x, f.frame.y, f.frame.w, f.frame.h);
     }
+    this.anims.create({ key: 'fx_slash', frames: [0, 1, 2].map((i) => ({ key: 'sprites', frame: `fx_slash${i}` })), frameRate: 24, repeat: 0 });
+    this.anims.create({ key: 'fx_spikes', frames: [{ key: 'sprites', frame: 'fx_spikes0' }, { key: 'sprites', frame: 'fx_spikes1' }], frameRate: 12, repeat: 0 });
     this.anims.create({ key: 'torch', frames: [{ key: 'sprites', frame: 'torch0' }, { key: 'sprites', frame: 'torch1' }], frameRate: 5, repeat: -1 });
     // радиальное свечение для факелов и героя (ADD-смешивание)
     const g = this.textures.createCanvas('glow', 64, 64);

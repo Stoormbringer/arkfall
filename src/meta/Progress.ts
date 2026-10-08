@@ -15,6 +15,7 @@ export interface Progress {
   hubShop?: { cycle: number; stock: (string | null)[] }; // ассортимент Лавки Ковчега
   inventory: string[];        // id предметов (могут повторяться)
   equipped: Partial<Record<'weapon' | 'armor' | 'accessory' | 'artifact', string>>;
+  upgrades?: Record<string, Partial<Record<'damage' | 'cooldown' | 'area' | 'duration' | 'projectiles' | 'charges', number>>>; // прокачка скиллов
 }
 
 const KEY = 'arkfall.progress.v1';

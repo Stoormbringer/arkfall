@@ -32,6 +32,7 @@ export class PauseScene extends Phaser.Scene {
   private emitAnd(ev: string) {
     if (this.done) return;
     this.done = true;
+    this.game.events.emit('sfx', 'ui');
     this.scene.stop();
     this.game.events.emit(ev);
   }

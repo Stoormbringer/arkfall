@@ -40,6 +40,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private attackReadyAt = 0;
   private attackPoseUntil = 0;
   private swing: Phaser.GameObjects.Graphics;
+  private slash: Phaser.GameObjects.Sprite;
   private mods: Mods;
 
   constructor(scene: Phaser.Scene, x: number, y: number, mods: Mods, hp?: number) {
@@ -59,6 +60,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.setDepth(10);
     this.invulnUntil = scene.time.now + P.spawnInvulnSec * 1000;
     this.swing = scene.add.graphics().setDepth(11);
+    this.slash = scene.add.sprite(x, y, 'sprites', 'fx_slash0').setDepth(11).setVisible(false).setBlendMode(Phaser.BlendModes.ADD);
+    this.slash.on('animationcomplete', () => this.slash.setVisible(false));
   }
 
   get isInvulnerable() { return this.scene.time.now < this.invulnUntil; }
@@ -68,14 +71,15 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const total = P.dodge.cooldownSec * 1000 * this.mods.cooldownMult;
     return Phaser.Math.Clamp(1 - (this.dodgeRechargeAt - this.scene.time.now) / total, 0, 1);
   }
-  get attackSpeedMult() { return (1 + this.rhythmStacks * (RHYTHM.attackSpeedPerStack as number)) * this.mods.attackSpeedMult; }
+  get rhythmMax() { return (RHYTHM.maxStacks as number) + (this.mods.skill.blood_rhythm?.charges ?? 0); }
+  get attackSpeedMult() { return (1 + this.rhythmStacks * (RHYTHM.attackSpeedPerStack as number) * (this.mods.skill.blood_rhythm?.damage ?? 1)) * this.mods.attackSpeedMult; }
 
   grantInvuln(ms: number) { this.invulnUntil = Math.max(this.invulnUntil, this.scene.time.now + ms); }
 
   /** Вызывается боем при каждом попадании ближним ударом */
   onMeleeHit() {
     if (!this.hasRhythm) return;
-    this.rhythmStacks = Math.min(RHYTHM.maxStacks as number, this.rhythmStacks + 1);
+    this.rhythmStacks = Math.min(this.rhythmMax, this.rhythmStacks + 1);
     this.rhythmLastHit = this.scene.time.now;
   }
 
@@ -90,7 +94,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   handleInput(input: PlayerInput, locked: boolean): Strike | null {
     const now = this.scene.time.now;
-    if (this.hasRhythm && this.rhythmStacks > 0 && now - this.rhythmLastHit > this.mods.rhythm.decaySec * 1000) this.rhythmStacks = 0;
+    if (this.hasRhythm && this.rhythmStacks > 0 && now - this.rhythmLastHit > this.mods.rhythm.decaySec * 1000 * (this.mods.skill.blood_rhythm?.duration ?? 1)) this.rhythmStacks = 0;
 
     if (this.dodgeCharges < this.dodgeMax && now >= this.dodgeRechargeAt) {
       this.dodgeCharges++;
@@ -116,14 +120,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.attackReadyAt = now + (P.weapon.cooldownSec * 1000) / this.attackSpeedMult;
       const angle = Phaser.Math.Angle.Between(this.x, this.y, input.aim.x, input.aim.y);
       const arcRad = Phaser.Math.DegToRad(P.weapon.arcDeg);
-      this.drawSwing(angle, arcRad);
       this.attackPoseUntil = now + 160;
       this.setFlipX(Math.cos(angle) < 0);
       let damage = P.weapon.damage * this.mods.damageMult;
       let radius = P.weapon.radius * this.mods.meleeRadiusMult;
       if (this.mods.echoOfPainArmed) { damage *= 1.5; this.mods.echoOfPainArmed = false; }
-      if (this.hasRiposte && now < this.riposteUntil) { damage *= RIPOSTE.damageMult as number; radius *= RIPOSTE.areaMult as number; this.riposteUntil = 0; }
-      const ignoreShield = this.hasRhythm && this.mods.rhythm.pierceAtMax && this.rhythmStacks >= (RHYTHM.maxStacks as number);
+      if (this.hasRiposte && now < this.riposteUntil) { const u = this.mods.skill.riposte; damage *= (RIPOSTE.damageMult as number) * (u?.damage ?? 1); radius *= (RIPOSTE.areaMult as number) * (u?.area ?? 1); this.riposteUntil = 0; }
+      this.drawSwing(angle, arcRad, radius);
+      const ignoreShield = this.hasRhythm && this.mods.rhythm.pierceAtMax && this.rhythmStacks >= this.rhythmMax;
       return { angle, radius, arcRad, damage, knockback: P.weapon.knockback * this.mods.knockbackMult, ignoreShield };
     }
     return null;
@@ -156,11 +160,15 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (Math.abs(dx) > 8) this.setFlipX(dx < 0);
   }
 
-  private drawSwing(angle: number, arcRad: number) {
+  /** Полумесяц удара: спрайт, повёрнутый по прицелу, масштаб по дальности; лёгкий след-сектор под ним */
+  private drawSwing(angle: number, arcRad: number, radius: number) {
     this.swing.clear();
-    this.swing.fillStyle(0xf5f1e6, 0.5);
-    this.swing.slice(this.x, this.y, P.weapon.radius, angle - arcRad / 2, angle + arcRad / 2, false);
+    this.swing.fillStyle(0xb2202c, 0.14);
+    this.swing.slice(this.x, this.y, radius, angle - arcRad / 2, angle + arcRad / 2, false);
     this.swing.fillPath();
-    this.scene.tweens.add({ targets: this.swing, alpha: { from: 1, to: 0 }, duration: 110, onComplete: () => { this.swing.clear(); this.swing.alpha = 1; } });
+    this.scene.tweens.add({ targets: this.swing, alpha: { from: 1, to: 0 }, duration: 140, onComplete: () => { this.swing.clear(); this.swing.alpha = 1; } });
+    const k = radius / 24;
+    this.slash.setPosition(this.x + Math.cos(angle) * radius * 0.45, this.y + Math.sin(angle) * radius * 0.45).setRotation(angle).setScale(k, k * (arcRad / Phaser.Math.DegToRad(100))).setVisible(true);
+    this.slash.play('fx_slash', true);
   }
 }

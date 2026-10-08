@@ -396,3 +396,96 @@ describe('формы комнат (headless)', () => {
     }
   }, 60_000);
 });
+
+describe('боссы актов 2–3 (headless)', () => {
+  type ArenaT = { enemies: Phaser.GameObjects.Group; player: { x: number; y: number; invulnUntil: number; setPosition: (x: number, y: number) => void }; damageEnemy: (e: unknown, amount: number, from: Phaser.Math.Vector2, kb: number, src: string) => boolean };
+
+  it('комната 20 — Костяной жрец: держит дистанцию, после 4 вееров зовёт скелетов; фаза 2 — телепорт от героя', async () => {
+    sim = await Sim.create('?tier=1&seed=42&room=20');
+    sim.step(2800);
+    expect(sim.snap!.boss?.name).toBe('Костяной жрец');
+    const arena = sim.game.scene.getScene('arena') as unknown as ArenaT;
+    arena.player.invulnUntil = 1e12;
+    const boss = (arena.enemies.getChildren() as Enemy[]).find((e) => e.isBoss)!;
+    sim.step(12_000);
+    const ids = (arena.enemies.getChildren() as Enemy[]).map((e) => e.id);
+    expect(ids.filter((id) => id === 'lancer').length).toBeGreaterThanOrEqual(2);
+    // фаза 2: встаём вплотную — лич уходит
+    arena.damageEnemy(boss, boss.maxHp * 0.55, new Phaser.Math.Vector2(0, 0), 0, 'test');
+    sim.step(100);
+    arena.player.setPosition(boss.x + 40, boss.y);
+    sim.step(600);
+    expect(Phaser.Math.Distance.Between(arena.player.x, arena.player.y, boss.x, boss.y)).toBeGreaterThan(200);
+    expect(sim.snap!.boss?.phase).toBe(2);
+  }, 40_000);
+
+  it('комната 30 — Страж Бездны: рывок, уязвим после; фаза 2 — кольцо снарядов', async () => {
+    sim = await Sim.create('?tier=1&seed=42&room=30');
+    sim.step(2800);
+    expect(sim.snap!.boss?.name).toBe('Страж Бездны');
+    const arena = sim.game.scene.getScene('arena') as unknown as ArenaT & { bullets: Phaser.Physics.Arcade.Group };
+    arena.player.invulnUntil = 1e12;
+    const boss = (arena.enemies.getChildren() as Enemy[]).find((e) => e.isBoss)!;
+    let sawVuln = false;
+    for (let i = 0; i < 60 && !sawVuln; i++) { sim.step(100); if (boss.isVulnerable) sawVuln = true; }
+    expect(sawVuln).toBe(true);
+    arena.damageEnemy(boss, boss.maxHp * 0.55, new Phaser.Math.Vector2(0, 0), 0, 'test');
+    sim.step(5000);
+    expect(sim.snap!.boss?.phase).toBe(2);
+    expect(arena.bullets.countActive(true)).toBeGreaterThan(0);
+  }, 40_000);
+});
+
+describe('прогрессия героя (headless)', () => {
+  it('?level=21: удар клинка сильнее, чем на 1-м уровне, и HP больше', async () => {
+    sim = await Sim.create('?tier=1&seed=3&room=2&level=1');
+    const hp1 = sim.snap!.maxHp, d1 = (sim.game.scene.getScene('arena') as unknown as { run: { mods: { damageMult: number } } }).run.mods.damageMult;
+    sim.destroy();
+    sim = await Sim.create('?tier=1&seed=3&room=2&level=21');
+    expect(sim.snap!.maxHp).toBeGreaterThan(hp1);
+    expect((sim.game.scene.getScene('arena') as unknown as { run: { mods: { damageMult: number } } }).run.mods.damageMult).toBeGreaterThan(d1 * 1.2);
+  }, 30_000);
+
+  it('хаб → U → экран прокачки → Esc', async () => {
+    sim = await Sim.create('');
+    sim.step(300);
+    sim.key('KeyU', 85); sim.step(300);
+    expect(sim.active('upgrade')).toBe(true);
+    sim.key('Escape', KEYS.ESC); sim.step(300);
+    expect(sim.active('title')).toBe(true);
+  }, 30_000);
+});
+
+describe('препятствия и анимация атак (headless)', () => {
+  it('враг, заброшенный внутрь колонны, выталкивается на свободную клетку', async () => {
+    sim = await Sim.create('?tier=1&seed=3&room=2&layout=1');
+    sim.step(2800);
+    const arena = sim.game.scene.getScene('arena') as unknown as { enemies: Phaser.GameObjects.Group; grid: { blocksWalk: (x: number, y: number) => boolean; obstacles: () => { cx: number; cy: number }[] } };
+    const e = (arena.enemies.getChildren() as Enemy[])[0];
+    const p = arena.grid.obstacles()[0];
+    e.setPosition(p.cx * 40 + 20, p.cy * 40 + 20);
+    expect(arena.grid.blocksWalk(e.x, e.y)).toBe(true);
+    sim.step(50);
+    expect(arena.grid.blocksWalk(e.x, e.y)).toBe(false);
+  }, 30_000);
+
+  it('замах и удар меняют форму врага (анимация атаки), после — масштаб восстанавливается', async () => {
+    sim = await Sim.create('?tier=1&seed=3&room=2');
+    sim.step(2800);
+    const arena = sim.game.scene.getScene('arena') as unknown as { enemies: Phaser.GameObjects.Group; player: { x: number; y: number; invulnUntil: number } };
+    arena.player.invulnUntil = 1e12;
+    killAll(sim);
+    const e = new Enemy(sim.game.scene.getScene('arena'), arena.player.x + 60, arena.player.y, 'tank', ENEMIES.tank as EnemyDef, 1, 2);
+    arena.enemies.add(e);
+    const k = e.baseScale;
+    let sawWind = false, sawStrike = false;
+    for (let i = 0; i < 40; i++) {
+      sim.step(50);
+      if (e.phase === 'windup' && e.scaleX < k * 0.99) sawWind = true;
+      if (e.phase === 'strike' && e.scaleX > k * 1.05) sawStrike = true;
+    }
+    expect(sawWind).toBe(true); expect(sawStrike).toBe(true);
+    sim.step(2000);
+    expect(e.scaleX).toBeCloseTo(k, 1);
+  }, 30_000);
+});

@@ -10,7 +10,9 @@ export interface EnemyContext {
   player: Phaser.Physics.Arcade.Sprite;
   shoot: (x: number, y: number, angle: number, speed: number, dmg: number, source: string) => void;
   hitPlayer: (dmg: number, source: string) => void;
-  spawnAdd?: (x: number, y: number, id: 'rusher' | 'shooter') => void;
+  spawnAdd?: (x: number, y: number, id: 'rusher' | 'shooter' | 'lancer' | 'shield') => void;
+  /** ближайшая свободная точка комнаты */
+  freeNear?: (x: number, y: number, r: number) => { x: number; y: number };
   aliveCount?: () => number;
   /** мгновенный взрыв: урон игроку в радиусе + вспышка */
   blast?: (x: number, y: number, radius: number, dmg: number, source: string) => void;
@@ -47,11 +49,12 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   detonated = false;
   private orbitDir: 1 | -1;
   baseScale = 1;
+  private lastPose = '';
   /** предпочтительная сторона обхода препятствий — фиксирована, чтобы не дёргаться */
   private avoidSide: 1 | -1;
   private strikeAngle = 0;
   private struck = false;
-  private tele: Phaser.GameObjects.Graphics;
+  protected tele: Phaser.GameObjects.Graphics;
   private hpBar: Phaser.GameObjects.Graphics;
 
   constructor(scene: Phaser.Scene, x: number, y: number, id: EnemyId, def: EnemyDef, tier: number, room: number) {
@@ -179,7 +182,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
             ctx.hitPlayer(this.dmg, this.def.name);
           }
         }
-        if (now >= this.phaseUntil) { this.setVelocity(0, 0); this.phase = 'recover'; this.phaseUntil = now + (this.recoverSecOverride ?? ('recoverSec' in atk ? atk.recoverSec : 0)) * 1000; }
+        if (now >= this.phaseUntil) { this.setVelocity(0, 0); this.phase = 'recover'; this.phaseUntil = now + (this.recoverSecOverride ?? ('recoverSec' in atk ? atk.recoverSec : 0)) * 1000; this.onRecover(ctx); }
         break;
       }
       case 'recover': {
@@ -208,8 +211,25 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   /** Кадр по фазе: погоня — шаг, замах/удар — атака, остальное — стойка; смотрим в сторону цели */
   private updatePose() {
     const v = this.body!.velocity as Phaser.Math.Vector2;
-    if (this.phase === 'windup' || this.phase === 'strike') { this.anims.stop(); this.setFrame(`${this.id}_attack`); }
-    else {
+    const k = this.baseScale;
+    if (this.phase === 'windup' || this.phase === 'strike') {
+      this.anims.stop(); this.setFrame(`${this.id}_attack`);
+      if (this.phase === 'windup' && this.lastPose !== 'windup') {
+        // замах: тело подбирается и отклоняется от цели, к концу замаха — почти в полный рост
+        this.scene.tweens.killTweensOf(this);
+        this.setScale(k * 0.9, k * 1.08);
+        this.scene.tweens.add({ targets: this, scaleX: k * 0.96, scaleY: k * 1.03, duration: Math.max(80, this.windupMs - 60), ease: 'Sine.In' });
+      }
+      if (this.phase === 'strike' && this.lastPose !== 'strike') {
+        // удар: резкий выпад формой к цели и возврат
+        this.scene.tweens.killTweensOf(this);
+        this.setScale(k * 1.22, k * 0.86);
+        this.scene.tweens.add({ targets: this, scaleX: k, scaleY: k, duration: 160, ease: 'Back.Out' });
+      }
+      this.lastPose = this.phase;
+    } else {
+      if (this.lastPose === 'windup' || this.lastPose === 'strike') { this.scene.tweens.killTweensOf(this); this.setScale(k); }
+      this.lastPose = this.phase;
       const want = v.lengthSq() > 4 ? `${this.id}_walk` : `${this.id}_idle`;
       if (this.anims.currentAnim?.key !== want || !this.anims.isPlaying) this.play(want, true);
     }
@@ -226,6 +246,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
   /** Хук для боссов: вызывается в момент удара */
   protected onStrike(_ctx: EnemyContext) { void _ctx; }
+  /** Хук для боссов: удар кончился, начинается восстановление */
+  protected onRecover(_ctx: EnemyContext) { void _ctx; }
 
   private beginStrike(now: number, ctx: EnemyContext) {
     this.onStrike(ctx);
@@ -238,6 +260,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       this.scene.physics.velocityFromRotation(this.strikeAngle, atk.lungeSpeed, this.body!.velocity as Phaser.Math.Vector2);
     } else if (atk.kind === 'shoot') {
       this.phaseUntil = now + 50;
+      this.scene.game.events.emit('sfx', 'shot');
       ctx.shoot(me.x, me.y, this.strikeAngle, atk.projectileSpeed, this.dmg, this.def.name);
     } else if (atk.kind === 'volley') {
       this.phaseUntil = now + 50;
@@ -257,7 +280,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       return;
     } else {
       this.phaseUntil = now + 120;
-      if (this.def.role === 'tank') shake(this.scene.cameras.main, 120, this.isBoss ? 0.008 : 0.004);
+      if (this.def.role === 'tank') { shake(this.scene.cameras.main, 120, this.isBoss ? 0.008 : 0.004); this.scene.game.events.emit('sfx', 'slam'); }
       const target = ctx.player.getCenter();
       if (Phaser.Math.Distance.BetweenPoints(me, target) <= atk.aoeRadius && (!ctx.hasLos || ctx.hasLos(me.x, me.y, target.x, target.y))) ctx.hitPlayer(this.dmg, this.def.name);
       const flash = this.scene.add.circle(me.x, me.y, atk.aoeRadius, 0xffd27a, 0.45).setDepth(6);

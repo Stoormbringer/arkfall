@@ -49,7 +49,7 @@ export function resetSkills(p: Progress): Progress | null {
   const price = skillResetPrice(level);
   if (p.echo < price || p.skills.length === 0) return null;
   const milestones = (F.milestones.skillLevels as number[]).filter((m) => m <= level);
-  const next: Progress = { ...p, echo: p.echo - price, skills: [], pendingMilestones: milestones };
+  const next: Progress = { ...p, echo: p.echo - price, skills: [], pendingMilestones: milestones, upgrades: {} };
   saveProgress(next);
   return next;
 }

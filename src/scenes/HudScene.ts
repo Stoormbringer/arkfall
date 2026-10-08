@@ -129,6 +129,7 @@ export class HudScene extends Phaser.Scene {
     }
     this.bossText.setText(s.boss ? `${s.boss.name} · фаза ${s.boss.phase}` : '');
     this.bossPortrait.setVisible(!!s.boss);
+    if (s.boss) this.bossPortrait.setFrame(`portrait_${s.boss.id}`);
     if (s.boss) { g.fillStyle(UI.panel, 1).fillRect(292, 632, 40, 40); g.lineStyle(2, s.boss.phase === 2 ? UI.crimsonHex : UI.goldHex, 1).strokeRect(292, 632, 40, 40); }
     this.info.setText(`Тир ${s.tier} · Акт ${s.act}/${s.acts} · Комната ${s.roomInAct}/${s.roomsPerAct}${s.roomTag ? ' [' + s.roomTag + ']' : ''} · Враги ${s.alive} · Убито ${s.kills}      Ранг ${s.rank}  ${Math.floor(s.shards)}/${Math.ceil(s.nextRankAt)} осколков · ${s.gold} золота · Эхо +${s.echo} · опыт +${s.xp}`);
     const sk = s.skills.map((v) => `${v.key} ${v.name} ${v.charges !== undefined ? '●'.repeat(v.charges) + '○'.repeat((v.maxCharges ?? 0) - v.charges) : v.ready01 >= 1 ? '✓' : Math.round(v.ready01 * 100) + '%'}`);

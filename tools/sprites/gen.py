@@ -311,6 +311,45 @@ def particle(c, size=3):
     s.rect(16 - size // 2, 16 - size // 2, 16 - size // 2 + size - 1, 16 - size // 2 + size - 1, c)
     return s
 
+# ---------- VFX ----------
+def slash(frame):
+    """полумесяц удара: 3 кадра — узкий → широкий → тающий; остриё направлено вправо (поворот в игре)"""
+    s = Sprite()
+    spans = [(0.55, 0.9), (0.2, 1.3), (0.5, 1.1)]
+    a0, a1 = spans[frame]
+    R, w = 14, (3, 5, 2)[frame]
+    for i in range(0, 60):
+        a = -a1 + (a1 + a0) * 0 + (-a1 + (2 * a1) * i / 59) if False else (-a1 + 2 * a1 * i / 59)
+        for r in range(R - w, R + 1):
+            x, y = int(16 + math.cos(a) * r), int(16 + math.sin(a) * r)
+            s.put(x, y, 'w' if r >= R - 1 else ('d' if frame != 2 else 'A'))
+        x, y = int(16 + math.cos(a) * (R - w)), int(16 + math.sin(a) * (R - w)); s.put(x, y, 'q')
+    return s
+
+def ring_fx():
+    s = Sprite()
+    for i in range(0, 360, 2):
+        a = math.radians(i)
+        s.put(int(16 + math.cos(a) * 14), int(16 + math.sin(a) * 14), 'w'); s.put(int(16 + math.cos(a) * 13), int(16 + math.sin(a) * 13), 'd')
+    return s
+
+def spikes_fx(frame):
+    s = Sprite()
+    h = (6, 12)[frame]
+    for bx in (6, 12, 18, 24):
+        for k in range(h):
+            w = max(0, 2 - k // 3)
+            s.rect(bx - w, 28 - k, bx + w, 28 - k, 'Z' if k < h - 2 else 'z')
+    s.outline()
+    return s
+
+def bolt_fx():
+    """искра для цепи молнии — ромб"""
+    s = Sprite()
+    for k, w in ((13, 1), (14, 2), (15, 3), (16, 3), (17, 2), (18, 1)):
+        s.rect(16 - w, k, 16 + w, k, 'w' if w > 1 else 'b')
+    return s
+
 def bullet(kind):
     s = Sprite()
     if kind == 'enemy': s.ellipse(16, 16, 4, 4, 'p'); s.ellipse(16, 16, 2, 2, 'e')
@@ -428,7 +467,62 @@ def boss_portrait():
     s.shade({'o': 'O', 'a': 'A'}); s.outline()
     return s
 
-CHARS = {'hero': hero, 'rusher': rusher, 'shooter': shooter, 'tank': tank, 'bomber': bomber, 'lancer': lancer, 'summoner': summoner, 'shield': shield, 'orbiter': orbiter, 'boss_hammer': boss}
+# ---------- Костяной жрец: парящий лич в пурпуре, костяная корона, посох с черепом ----------
+def lich(pose='idle', frame=0):
+    s = Sprite()
+    bob = 1 if frame % 2 else 0
+    # рваный подол без ног
+    s.rect(10, 12 - bob, 22, 24 - bob, 'U'); s.rect(8, 18 - bob, 24, 24 - bob, 'U')
+    for x in (8, 11, 14, 17, 20, 23): s.rect(x, 25 - bob, x, 27 - bob, 'U')
+    s.rect(11, 14 - bob, 21, 14 - bob, 'j'); s.rect(16, 14 - bob, 16, 22 - bob, 'j')  # руны на мантии
+    # череп-голова и корона
+    s.ellipse(16, 7 - bob, 5, 5, 'z'); s.rect(13, 7 - bob, 19, 8 - bob, 'A'); s.put(14, 7 - bob, 'j'); s.put(18, 7 - bob, 'j'); s.rect(14, 10 - bob, 18, 10 - bob, 'Z')
+    s.rect(11, 2 - bob, 21, 3 - bob, 'T'); [s.put(x, 1 - bob, 'T') for x in (12, 16, 20)]
+    # посох
+    if pose == 'attack':
+        s.line(22, 12 - bob, 30, 8 - bob, 'O', 1); s.ellipse(30, 6 - bob, 2, 2, 'z'); s.put(29, 6 - bob, 'j'); s.put(31, 6 - bob, 'j')
+        for (ax, ay) in ((26, 2), (31, 12), (28, 16)): s.put(ax, ay - bob, 'j')
+    else:
+        s.line(23, 4 - bob, 24, 26 - bob, 'O', 1); s.ellipse(23, 3 - bob, 2, 2, 'z'); s.put(22, 3 - bob, 'j'); s.put(24, 3 - bob, 'j')
+    s.shade({'U': 'A', 'z': 'Z'}); s.outline()
+    return s
+
+# ---------- Страж Бездны: исполин в стальных латах, бирюзовые глаза, глефа ----------
+def warden(pose='idle', frame=0):
+    s = Sprite()
+    legs(s, 11, 21, 25, 31, 'a', pose, frame, w=2)
+    s.rect(7, 12, 25, 24, 'a'); s.rect(5, 10, 10, 15, 'g'); s.rect(22, 10, 27, 15, 'g')
+    s.rect(16, 13, 16, 23, 'A'); s.rect(9, 21, 23, 22, 'A'); s.put(16, 21, 'l')
+    s.rect(11, 2, 21, 10, 'a'); s.rect(12, 1, 20, 1, 'g'); s.rect(11, 2, 21, 2, 'g')
+    s.rect(13, 6, 19, 7, 'A'); s.put(14, 6, 'l'); s.put(18, 6, 'l')  # бирюзовые глаза
+    s.rect(10, 3, 10, 8, 'L'); s.rect(22, 3, 22, 8, 'L')  # гребни шлема
+    if pose == 'attack':
+        s.line(8, 16, 31, 16, 'O', 2); s.rect(27, 14, 31, 18, 'd'); s.rect(29, 15, 31, 17, 'w'); s.put(31, 16, 'l')
+    else:
+        s.line(26, 2, 27, 30, 'O', 2); s.rect(25, 0, 28, 5, 'd'); s.rect(26, 1, 27, 3, 'w')
+    s.shade({'a': 'A', 'g': 'a'}); s.outline()
+    return s
+
+def lich_portrait():
+    s = Sprite()
+    s.ellipse(16, 16, 11, 12, 'z'); s.rect(5, 16, 27, 26, 'z')
+    s.rect(8, 13, 24, 17, 'A'); s.rect(10, 14, 13, 16, 'j'); s.rect(19, 14, 22, 16, 'j')
+    s.rect(13, 21, 19, 24, 'Z'); [s.put(x, 25, 'z') for x in (13, 15, 17, 19)]
+    s.rect(6, 4, 26, 6, 'T'); [s.put(x, 3, 'T') for x in (7, 12, 16, 20, 25)]; s.rect(14, 1, 18, 2, 'T')
+    s.rect(3, 26, 29, 31, 'U')
+    s.shade({'z': 'Z'}); s.outline()
+    return s
+
+def warden_portrait():
+    s = Sprite()
+    s.rect(6, 6, 26, 24, 'a'); s.rect(4, 4, 28, 8, 'g'); s.rect(5, 2, 27, 3, 'g')
+    s.rect(8, 13, 24, 17, 'A'); s.rect(10, 14, 13, 16, 'l'); s.rect(19, 14, 22, 16, 'l')
+    s.rect(2, 2, 3, 12, 'L'); s.rect(29, 2, 30, 12, 'L'); s.rect(14, 0, 18, 1, 'L')
+    s.rect(9, 20, 23, 21, 'A'); s.rect(11, 23, 21, 23, 'A'); s.rect(3, 26, 29, 31, 'a')
+    s.shade({'a': 'A', 'g': 'a'}); s.outline()
+    return s
+
+CHARS = {'hero': hero, 'rusher': rusher, 'shooter': shooter, 'tank': tank, 'bomber': bomber, 'lancer': lancer, 'summoner': summoner, 'shield': shield, 'orbiter': orbiter, 'boss_hammer': boss, 'boss_lich': lich, 'boss_warden': warden}
 POSES = [('idle0', 'idle', 0), ('idle1', 'idle', 1), ('walk0', 'walk', 0), ('walk1', 'walk', 1), ('attack', 'attack', 0)]
 
 SPRITES = {}
@@ -438,7 +532,8 @@ for k, (sym, c, c2) in RUNE_ICONS.items(): SPRITES['rune_' + k] = icon(sym, c, c
 for k, (sym, c, c2) in ITEM_ICONS.items(): SPRITES['item_' + k] = icon(sym, c, c2)
 SPRITES.update({'floor0': floor_tile(0), 'floor1': floor_tile(1), 'floor2': floor_tile(2), 'wall': wall_tile(False), 'wall_top': wall_tile(True), 'bullet_enemy': bullet('enemy'), 'bullet_player': bullet('player'),
                 'pillar': pillar_tile(), 'pit': pit_tile(), 'torch0': torch(0), 'torch1': torch(1),
-                'portrait_boss_hammer': boss_portrait(),
+                'portrait_boss_hammer': boss_portrait(), 'portrait_boss_lich': lich_portrait(), 'portrait_boss_warden': warden_portrait(),
+                'fx_slash0': slash(0), 'fx_slash1': slash(1), 'fx_slash2': slash(2), 'fx_ring': ring_fx(), 'fx_spikes0': spikes_fx(0), 'fx_spikes1': spikes_fx(1), 'fx_bolt': bolt_fx(),
                 'p_blood': particle('R'), 'p_ichor': particle('n'), 'p_bone': particle('z', 2), 'p_spark': particle('e', 2), 'p_fire': particle('i'), 'p_magic': particle('u'), 'p_steel': particle('d', 2), 'p_crimson': particle('q', 2)})
 _UNUSED = {
     'hero_idle': hero('idle'), 'hero_walk0': hero('walk', 0), 'hero_walk1': hero('walk', 1), 'hero_attack': hero('attack'),
@@ -459,7 +554,7 @@ def preview(path, scale=4):
             im.paste(SPRITES['floor%d' % ((r + c) % 3)].image().resize((S * scale, S * scale), Image.NEAREST), (x, y))
             im.alpha_composite(SPRITES[f'{cid}_{pname}'].image().resize((S * scale, S * scale), Image.NEAREST), (x, y))
             d.text((x, y + S * scale + 2), f'{cid}_{pname}', fill=(201, 194, 176, 255))
-    for c, key in enumerate(['floor0', 'pillar', 'pit', 'wall_top', 'portrait_boss_hammer']):
+    for c, key in enumerate(['portrait_boss_hammer', 'portrait_boss_lich', 'portrait_boss_warden', 'pillar', 'torch0']):
         x, y = 12 + c * cw, 12 + len(names) * ch
         im.alpha_composite(SPRITES[key].image().resize((S * scale, S * scale), Image.NEAREST), (x, y))
         d.text((x, y + S * scale + 2), key, fill=(201, 194, 176, 255))

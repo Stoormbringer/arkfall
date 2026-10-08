@@ -195,5 +195,13 @@
       },
       "rotateEveryRuns": 3
     }
+  },
+  "heroGrowth": {
+    "_comment": "Пакет 31: уровень героя даёт закалку. Малые проценты — Тир остаётся мастерством (§6.6), но 17-й уровень ощущается.",
+    "damagePerLevel": 0.012,
+    "hpPerLevel": 1.2,
+    "cooldownPerLevel": 0.003,
+    "cooldownCap": 0.3,
+    "upgradePointEveryLevels": 5
   }
 }

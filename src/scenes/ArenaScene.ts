@@ -6,7 +6,7 @@ import type { EnemyDef, EnemyId } from '../data/types';
 import { enemyCount, xpBoss, xpMob } from '../core/formulas';
 import { Rng } from '../core/rng';
 import { Enemy } from '../entities/Enemy';
-import { Boss } from '../entities/Boss';
+import { Boss, createBoss } from '../entities/Boss';
 import { loadProgress, recordRun } from '../meta/Progress';
 import { Player } from '../entities/Player';
 import { Projectile } from '../entities/Projectile';
@@ -25,7 +25,7 @@ import { loadSettings } from '../meta/Settings';
 
 export interface ArenaSnapshot {
   act: number; roomInAct: number; roomsPerAct: number; acts: number;
-  boss: { name: string; hp01: number; phase: number } | null;
+  boss: { id: string; name: string; hp01: number; phase: number } | null;
   roomTag: string; layout: string;
   paused: boolean;
   lastError: string;
@@ -37,7 +37,7 @@ export interface ArenaSnapshot {
   ttkSamples: { role: string; sec: number; hits: number }[];
 }
 
-interface Zone { x: number; y: number; r: number; until: number; nextTick: number; dps: number; tickSec: number; slow: number; gfx: Phaser.GameObjects.Arc; opts: ZoneOpts; rooted: Set<Enemy> }
+interface Zone { x: number; y: number; r: number; until: number; nextTick: number; dps: number; tickSec: number; slow: number; gfx: Phaser.GameObjects.Arc; opts: ZoneOpts; rooted: Set<Enemy>; deco: Phaser.GameObjects.GameObject[] }
 interface PlayerBullet extends Projectile { onHit?: (e: Enemy, x: number, y: number) => void }
 
 const ROOM = ROOMS.arena;
@@ -83,7 +83,7 @@ export class ArenaScene extends Phaser.Scene {
       const q = new URLSearchParams(location.search);
       const p = loadP();
       const skills = q.get('skills')?.split(',') ?? p.skills; // ?skills=dash_cut,spark — для тестов
-      this.run = new RunState(Number(q.get('tier') ?? 1), Number(q.get('seed') ?? Date.now() % 1_000_000), skills, p.equipped);
+      this.run = new RunState(Number(q.get('tier') ?? 1), Number(q.get('seed') ?? Date.now() % 1_000_000), skills, p.equipped, Number(q.get('level') ?? 1), p.upgrades ?? {}); // ?level=17 — проверить закалку
       this.run.room = Number(q.get('room') ?? 1);
     }
     this.rng = new Rng(this.run.seed * 31 + this.run.room);
@@ -130,6 +130,8 @@ export class ArenaScene extends Phaser.Scene {
       damage: (e, amount, from, kb, source) => this.damageEnemy(e, amount, from, kb, source),
       addZone: (x, y, r, dur, dps, tick, slow, opts) => this.addZone(x, y, r, dur, dps, tick, slow ?? 1, opts),
       hasLos: (x0, y0, x1, y1) => this.grid.hasLos(x0, y0, x1, y1),
+      burst: (f, x, y, n) => this.burst(f, x, y, n),
+      shockwave: (x, y, r, c) => this.shockwave(x, y, r, c),
       float: (x, y, t, c) => this.floatText(x, y, t, c),
       shootPlayer: (x, y, a, sp, d, onHit, bounces) => {
         const b = this.playerBullets.get(x, y) as PlayerBullet | null;
@@ -240,6 +242,8 @@ export class ArenaScene extends Phaser.Scene {
       case 'shooter': case 'summoner': return ['p_magic', 'p_blood'];
       case 'orbiter': return ['p_ichor', 'p_magic'];
       case 'boss_hammer': return ['p_blood', 'p_spark'];
+      case 'boss_lich': return ['p_bone', 'p_magic'];
+      case 'boss_warden': return ['p_spark', 'p_blood'];
       default: return ['p_blood'];
     }
   }
@@ -255,6 +259,21 @@ export class ArenaScene extends Phaser.Scene {
       this.obstacles.add(body);
       if (cell === '#') this.shotBlockers.add(this.add.rectangle(x, y, TILE, TILE).setVisible(false));
     }
+  }
+
+  /** Тело оказалось внутри колонны или ямы (рывок, отбрасывание, толкотня коллайдера) — выталкиваем в ближайшую свободную точку */
+  private unstick(o: Phaser.Physics.Arcade.Sprite, r: number) {
+    if (!this.grid.blocksWalk(o.x, o.y)) return;
+    let best: { x: number; y: number } | null = null, bd = Infinity;
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+      for (const [sx, sy] of [[0.5, 0.5], [0.25, 0.5], [0.75, 0.5], [0.5, 0.25], [0.5, 0.75]]) {
+        const px = (Math.floor(o.x / TILE) + dx + sx) * TILE, py = (Math.floor(o.y / TILE) + dy + sy) * TILE;
+        if (!this.grid.isFree(px, py, r * 0.6)) continue;
+        const d = Phaser.Math.Distance.Between(o.x, o.y, px, py);
+        if (d < bd) { bd = d; best = { x: px, y: py }; }
+      }
+    }
+    if (best) { o.setPosition(best.x, best.y); o.setVelocity(0, 0); }
   }
 
   /** Ближайшая свободная точка к (x, y) для тела радиуса r — по спирали клеток */
@@ -365,13 +384,15 @@ export class ArenaScene extends Phaser.Scene {
       steer: (x: number, y: number, want: number, r: number, side: 1 | -1) => this.grid.steer(x, y, want, r, side),
       hasLos: (x0: number, y0: number, x1: number, y1: number) => this.grid.hasLos(x0, y0, x1, y1),
       blast: (x: number, y: number, r: number, d: number, src: string) => this.blast(x, y, r, d, src),
-      spawnAdd: (x: number, y: number, id: 'rusher' | 'shooter') => {
+      freeNear: (x: number, y: number, r: number) => this.freeNear(x, y, r),
+      spawnAdd: (x: number, y: number, id: 'rusher' | 'shooter' | 'lancer' | 'shield') => {
         this.pendingSpawns++;
         const p = this.freeNear(x, y, 12);
         this.telegraphSpawn(p, () => { this.pendingSpawns--; this.enemies.add(new Enemy(this, p.x, p.y, id, ENEMIES[id] as EnemyDef, this.run.tier, this.run.room)); });
       },
     };
-    for (const e of this.enemies.getChildren() as Enemy[]) e.update(ctx);
+    for (const e of this.enemies.getChildren() as Enemy[]) { if (e.active) this.unstick(e, e.def.radius); e.update(ctx); }
+    this.unstick(this.player, 12);
 
     const alive = this.enemies.countActive(true);
     if (this.waveStarted && alive === 0 && this.pendingSpawns === 0 && !this.advancing) this.onRoomCleared();
@@ -393,6 +414,7 @@ export class ArenaScene extends Phaser.Scene {
     const dealt = Math.min(amount, Math.max(0, e.hp));
     const mats = this.materialOf(e);
     let killed = e.takeDamage(amount, from, knockback);
+    this.sfx(killed ? 'kill' : 'hit');
     const ex = e.x, ey = e.y; // после смерти объект уничтожен — координаты берём заранее
     this.burst(mats[0], ex, ey, killed ? 14 : 4);
     if (mats[1]) this.burst(mats[1], ex, ey, killed ? 8 : 2);
@@ -414,10 +436,21 @@ export class ArenaScene extends Phaser.Scene {
     return killed;
   }
 
+  private sfx(name: string) { this.game.events.emit('sfx', name); }
+
+  /** Ударная волна: кольцо-спрайт расширяется до радиуса и тает */
+  private shockwave(x: number, y: number, r: number, color: number) {
+    const ring = this.add.image(x, y, 'sprites', 'fx_ring').setScale(0.3).setTint(color).setDepth(6).setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: ring, scale: r / 14, alpha: 0, duration: 260, ease: 'Quad.Out', onComplete: () => ring.destroy() });
+  }
+
   /** Взрыв: вспышка, урон игроку в радиусе */
   private blast(x: number, y: number, r: number, dmg: number, source: string) {
-    const flash = this.add.circle(x, y, r, 0xff8a3c, 0.5).setDepth(6);
+    this.sfx('explode');
+    const flash = this.add.circle(x, y, r, 0xff8a3c, 0.4).setDepth(6);
     this.tweens.add({ targets: flash, alpha: 0, scale: 1.15, duration: 220, onComplete: () => flash.destroy() });
+    this.shockwave(x, y, r, 0xff8a3c);
+    this.burst('p_fire', x, y, 14); this.burst('p_spark', x, y, 6);
     if (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) <= r + 10 && this.grid.hasLos(x, y, this.player.x, this.player.y)) this.hitPlayer(dmg, source);
   }
 
@@ -447,6 +480,7 @@ export class ArenaScene extends Phaser.Scene {
       this.damageEnemy(e, s.damage, c, s.knockback, 'Дуговой клинок', s.ignoreShield);
     }
     if (hitAny) this.player.onMeleeHit();
+    this.sfx('swing');
   }
 
   private hitPlayer(dmg: number, source: string) {
@@ -459,6 +493,7 @@ export class ArenaScene extends Phaser.Scene {
     const barrier = this.skills.find((s): s is Barrier => s instanceof Barrier);
     if (barrier) { dmg = barrier.absorb(dmg); if (dmg <= 0) { this.player.grantInvuln(150); return; } }
     if (!this.player.takeDamage(dmg, source)) return;
+    this.sfx('hurt');
     this.burst('p_crimson', this.player.x, this.player.y, 8);
     if (this.player.hp <= 0) {
       if (this.run.mods.lastBreath && !this.run.mods.lastBreathUsed) {
@@ -476,8 +511,9 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   private onParry() {
+    this.sfx('parry');
     const r = this.run.mods.riposte;
-    this.player.riposteUntil = this.time.now + (r.windowSec ?? (SKILLS.riposte.base.windowSec as number)) * 1000;
+    this.player.riposteUntil = this.time.now + (r.windowSec ?? (SKILLS.riposte.base.windowSec as number)) * 1000 * (this.run.mods.skill.riposte?.duration ?? 1);
     if (r.cooldownRefundSec > 0) for (const s of this.skills) s.refund(r.cooldownRefundSec * 1000);
     this.floatText(this.player.x, this.player.y - 30, 'парирование', '#f5f1e6');
   }
@@ -486,14 +522,27 @@ export class ArenaScene extends Phaser.Scene {
 
   private addZone(x: number, y: number, r: number, durationSec: number, dps: number, tickSec: number, slow = 1, opts: ZoneOpts = {}) {
     const color = slow < 1 ? 0x7fd48a : 0xff7a3c;
-    const gfx = this.add.circle(x, y, r, color, 0.22).setStrokeStyle(1, color, 0.6).setDepth(3);
-    this.zones.push({ x, y, r, until: this.time.now + durationSec * 1000, nextTick: this.time.now, dps, tickSec, slow, gfx, opts, rooted: new Set() });
+    const gfx = this.add.circle(x, y, r, color, 0.16).setStrokeStyle(1, color, 0.5).setDepth(3);
+    const deco: Phaser.GameObjects.GameObject[] = [];
+    if (slow < 1) {
+      // шипы из земли: несколько пучков внутри зоны, вырастают с задержкой
+      for (let i = 0; i < Math.max(4, Math.round(r / 18)); i++) {
+        const a = Math.random() * Math.PI * 2, d = Math.random() * (r - 14);
+        const sp = this.add.sprite(x + Math.cos(a) * d, y + Math.sin(a) * d, 'sprites', 'fx_spikes0').setScale(1.4).setDepth(3).setAlpha(0.95);
+        this.time.delayedCall(i * 40, () => sp.active && sp.play('fx_spikes'));
+        deco.push(sp);
+      }
+    } else {
+      const em = this.add.particles(x, y, 'sprites', { frame: 'p_fire', lifespan: 500, speed: { min: 5, max: 25 }, scale: { start: 1.2, end: 0 }, alpha: { start: 0.8, end: 0 }, frequency: 90, emitZone: { type: 'random', source: new Phaser.Geom.Circle(0, 0, r * 0.8) } as Phaser.Types.GameObjects.Particles.ParticleEmitterRandomZoneConfig }).setDepth(4).setBlendMode(Phaser.BlendModes.ADD);
+      deco.push(em);
+    }
+    this.zones.push({ x, y, r, until: this.time.now + durationSec * 1000, nextTick: this.time.now, dps, tickSec, slow, gfx, opts, rooted: new Set(), deco });
   }
 
   private updateZones() {
     const now = this.time.now;
     this.zones = this.zones.filter((z) => {
-      if (now >= z.until) { z.gfx.destroy(); return false; }
+      if (now >= z.until) { z.gfx.destroy(); for (const d of z.deco) d.destroy(); return false; }
       if (now >= z.nextTick) {
         z.nextTick = now + z.tickSec * 1000;
         const from = new Phaser.Math.Vector2(z.x, z.y);
@@ -524,7 +573,8 @@ export class ArenaScene extends Phaser.Scene {
       this.pendingSpawns++;
       this.telegraphSpawn(pos, () => {
         this.pendingSpawns--;
-        this.boss = new Boss(this, pos.x, pos.y, 'boss_hammer', ENEMIES.boss_hammer as EnemyDef, this.run.tier, this.run.room);
+        const bossId = (RUN.bossByAct as EnemyId[])[Math.min(Math.ceil(this.run.room / RUN.roomsPerAct), RUN.bossByAct.length) - 1];
+        this.boss = createBoss(this, pos.x, pos.y, bossId, ENEMIES[bossId] as EnemyDef, this.run.tier, this.run.room);
         this.boss.windupMs *= this.run.mods.enemyWindupMult;
         this.enemies.add(this.boss);
       });
@@ -585,7 +635,7 @@ export class ArenaScene extends Phaser.Scene {
     const dropChance = this.isBossRoom ? F.loot.bossDropChance : this.run.nextDoor === 'elite' ? F.loot.eliteRoomDropChance : this.run.nextDoor === 'shards' ? F.loot.treasuryDropChance : 0;
     if (dropChance > 0 && this.rng.next() < dropChance) {
       const id = rollItem(this.rng, this.run.tier, this.run.backpack);
-      if (id) { this.run.backpack.push(id); this.showToast(`Найдено: ${ITEMS[id].name} — ${ITEMS[id].text}`); }
+      if (id) { this.run.backpack.push(id); this.showToast(`Найдено: ${ITEMS[id].name} — ${ITEMS[id].text}`); this.sfx('gold'); }
     }
     // Награды дверей — после зачистки
     switch (this.run.nextDoor) {
@@ -645,6 +695,7 @@ export class ArenaScene extends Phaser.Scene {
   private onDoorChosen(reward: DoorReward) {
     if (!this.doorPending) return;
     this.closeOverlay();
+    this.sfx('door');
     this.run.nextDoor = reward;
     this.doorPending = false;
     this.time.delayedCall(120, () => { this.run.onRoomAdvance(); this.scene.restart({ run: this.run }); });
@@ -688,6 +739,7 @@ export class ArenaScene extends Phaser.Scene {
     if (!this.choosing) return;
     this.closeOverlay();
     const wasStart = this.run.rank === 0 && this.run.facets.length === 0;
+    this.sfx('rune');
     this.run.takeFacet(id);
     this.choosing = false;
     this.applyModsToPlayer();
@@ -717,6 +769,7 @@ export class ArenaScene extends Phaser.Scene {
   private endRun(won: boolean) {
     if (this.finished) return;
     this.finished = true;
+    this.sfx(won ? 'win' : 'death');
     const before = loadProgress();
     const loot = won ? this.run.backpack : keepOnDeath(this.run.backpack);
     if (!this.isTestRun) clearRun();
@@ -733,7 +786,7 @@ export class ArenaScene extends Phaser.Scene {
   private emit(paused = false) {
     const snap: ArenaSnapshot = {
       act: Math.ceil(this.run.room / RUN.roomsPerAct), roomInAct: ((this.run.room - 1) % RUN.roomsPerAct) + 1, roomsPerAct: RUN.roomsPerAct, acts: RUN.acts,
-      boss: this.boss && this.boss.active ? { name: this.boss.def.name, hp01: this.boss.hp / this.boss.maxHp, phase: this.boss.bossPhase } : null,
+      boss: this.boss && this.boss.active ? { id: this.boss.id, name: this.boss.def.name, hp01: this.boss.hp / this.boss.maxHp, phase: this.boss.bossPhase } : null,
       roomTag: this.run.nextDoor && this.run.nextDoor !== 'boss' ? DOORS[this.run.nextDoor].name : '', layout: this.grid.def.name,
       paused, lastError: (globalThis as unknown as { __arkfallError?: string }).__arkfallError ?? '',
       tier: this.run.tier, room: this.run.room, seed: this.run.seed, kills: this.run.kills,

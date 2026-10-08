@@ -4,10 +4,12 @@ export interface Settings {
   flash: boolean;      // вспышка экрана при уроне герою
   particles: 'full' | 'low' | 'off';
   corpses: boolean;    // тела врагов остаются и тают
+  sfxVolume: number;   // 0..1
+  musicVolume: number; // 0..1 — эмбиент
 }
 
 const KEY = 'arkfall.settings.v1';
-export const DEFAULT_SETTINGS: Settings = { shake: true, flash: true, particles: 'full', corpses: true };
+export const DEFAULT_SETTINGS: Settings = { shake: true, flash: true, particles: 'full', corpses: true, sfxVolume: 0.8, musicVolume: 0.5 };
 let cache: Settings | null = null;
 
 export function loadSettings(): Settings {

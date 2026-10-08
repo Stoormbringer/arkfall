@@ -3,6 +3,7 @@ import { shardsForRank } from '../core/formulas';
 import { applyFacet, applyItem, defaultMods, type Mods } from './mods';
 import { ITEMS } from './loot';
 import type { ItemSlot } from '../data/types';
+import { applyHeroGrowth, applyUpgrades, type Upgrades } from '../meta/hero';
 
 export type DoorKind = 'shards' | 'heal' | 'facet' | 'elite' | 'boss' | 'shop';
 
@@ -15,6 +16,7 @@ export interface RunSave {
   pendingOffers: number; offerReasons: string[]; rerollsLeft: number;
   skills: string[]; facets: string[]; backpack: string[];
   equipped: Partial<Record<ItemSlot, string>>;
+  level: number; upgrades: Upgrades;
   startOfferDone: boolean; nextDoor: DoorKind | null; lastBreathUsed: boolean;
 }
 
@@ -40,22 +42,28 @@ export class RunState {
   readonly facets: string[] = [];
   readonly backpack: string[] = [];
   equipped: Partial<Record<ItemSlot, string>> = {};
+  /** уровень героя и прокачка скиллов на момент старта забега — закалка входит в моды */
+  level = 1;
+  upgrades: Upgrades = {};
   startOfferDone = false;
   nextDoor: DoorKind | null = null;
   /** один объект на весь забег — скиллы держат на него ссылку, поэтому пересборка идёт на месте */
   readonly mods: Mods = defaultMods();
   readonly ttkSamples: { role: string; sec: number; hits: number }[] = [];
 
-  constructor(tier: number, seed: number, skills: string[], equipped: Partial<Record<ItemSlot, string>> = {}) {
+  constructor(tier: number, seed: number, skills: string[], equipped: Partial<Record<ItemSlot, string>> = {}, level = 1, upgrades: Upgrades = {}) {
     this.tier = tier; this.seed = seed; this.skills = skills;
     this.equipped = { ...equipped };
+    this.level = level; this.upgrades = upgrades;
     this.rebuildMods();
   }
 
-  /** Моды = база → экипировка → Руны. Флаги расхода (Последний вздох) переживают пересборку. */
+  /** Моды = база → закалка уровня → прокачка скиллов → экипировка → Руны. Флаги расхода (Последний вздох) переживают пересборку. */
   rebuildMods() {
     const used = this.mods.lastBreathUsed;
     Object.assign(this.mods, defaultMods());
+    applyHeroGrowth(this.mods, this.level);
+    applyUpgrades(this.mods, this.upgrades);
     for (const id of Object.values(this.equipped)) if (id && ITEMS[id]) applyItem(this.mods, ITEMS[id]);
     for (const id of this.facets) applyFacet(this.mods, id);
     this.mods.lastBreathUsed = used;
@@ -100,12 +108,12 @@ export class RunState {
       v: 2, tier: this.tier, seed: this.seed, room: this.room, kills: this.kills, xp: this.xp, hp: this.hp,
       shards: this.shards, rank: this.rank, gold: this.gold, goldEarned: this.goldEarned, echo: this.echo, pendingOffers: this.pendingOffers, offerReasons: [...this.offerReasons],
       rerollsLeft: this.rerollsLeft, skills: [...this.skills], facets: [...this.facets], backpack: [...this.backpack],
-      equipped: { ...this.equipped }, startOfferDone: this.startOfferDone, nextDoor: this.nextDoor, lastBreathUsed: this.mods.lastBreathUsed,
+      equipped: { ...this.equipped }, level: this.level, upgrades: JSON.parse(JSON.stringify(this.upgrades)), startOfferDone: this.startOfferDone, nextDoor: this.nextDoor, lastBreathUsed: this.mods.lastBreathUsed,
     };
   }
 
   static fromSave(s: RunSave): RunState {
-    const r = new RunState(s.tier, s.seed, s.skills, s.equipped);
+    const r = new RunState(s.tier, s.seed, s.skills, s.equipped, s.level ?? 1, s.upgrades ?? {});
     r.room = s.room; r.kills = s.kills; r.xp = s.xp; r.hp = s.hp; r.shards = s.shards; r.rank = s.rank;
     r.gold = s.gold; r.goldEarned = s.goldEarned; r.echo = s.echo ?? 0;
     r.pendingOffers = s.pendingOffers; r.offerReasons = [...s.offerReasons]; r.rerollsLeft = s.rerollsLeft;

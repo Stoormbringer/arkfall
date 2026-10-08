@@ -244,6 +244,7 @@ export class ArenaScene extends Phaser.Scene {
       shoot: (x: number, y: number, a: number, sp: number, d: number, src: string) => (this.bullets.get(x, y) as Projectile | null)?.fire(x, y, a, sp, d, src),
       hitPlayer: (d: number, src: string) => this.hitPlayer(d, src),
       aliveCount: () => this.enemies.countActive(true) + this.pendingSpawns,
+      blast: (x: number, y: number, r: number, d: number, src: string) => this.blast(x, y, r, d, src),
       spawnAdd: (x: number, y: number, id: 'rusher' | 'shooter') => {
         this.pendingSpawns++;
         this.telegraphSpawn(new Phaser.Math.Vector2(x, y), () => { this.pendingSpawns--; this.enemies.add(new Enemy(this, x, y, id, ENEMIES[id] as EnemyDef, this.run.tier, this.run.room)); });
@@ -262,11 +263,18 @@ export class ArenaScene extends Phaser.Scene {
   private damageEnemy(e: Enemy, amount: number, from: Phaser.Math.Vector2, knockback: number, source: string): boolean {
     if (!e.active) return false;
     e.lastHitBy = source;
+    // Щитоносец: урон с фронта гасится; Копейщик после рывка уязвим
+    if (e.def.shield) {
+      const diff = Math.abs(Phaser.Math.Angle.Wrap(Phaser.Math.Angle.Between(e.x, e.y, from.x, from.y) - e.facing));
+      if (diff <= Phaser.Math.DegToRad(e.def.shield.frontArcDeg) / 2) { amount *= e.def.shield.frontDamageMult; this.floatText(e.x, e.y - 20, 'щит', '#dfe8e6'); }
+    }
+    if (e.isVulnerable) amount *= e.def.recoverVulnMult!;
     const dealt = Math.min(amount, Math.max(0, e.hp));
     let killed = e.takeDamage(amount, from, knockback);
     if (this.run.mods.lifesteal > 0 && source === 'Дуговой клинок') this.player.heal(dealt * this.run.mods.lifesteal);
     if (!killed && this.run.mods.executeBelow > 0 && e.hp / e.maxHp < this.run.mods.executeBelow) { e.die(); killed = true; }
     if (killed) {
+      if (e.def.attack.kind === 'explode' && !e.detonated) this.delayedBlast(e.x, e.y, e.def.attack.aoeRadius, e.dmg, e.def.name, e.def.attack.deathFuseSec * 1000);
       this.run.kills++;
       this.run.xp += Math.round((e.isBoss ? xpBoss(this.run.tier, this.run.room) : xpMob(this.run.tier, this.run.room)) * this.run.mods.xpMult);
       if (e.firstHitAt !== null && !e.isBoss) this.run.ttkSamples.push({ role: e.id, sec: (this.time.now - e.firstHitAt) / 1000, hits: e.hitsTaken });
@@ -279,6 +287,19 @@ export class ArenaScene extends Phaser.Scene {
       this.floatText(e.x, e.y - 14, `+${gold}`, '#f0c75e');
     }
     return killed;
+  }
+
+  /** Взрыв: вспышка, урон игроку в радиусе */
+  private blast(x: number, y: number, r: number, dmg: number, source: string) {
+    const flash = this.add.circle(x, y, r, 0xff8a3c, 0.5).setDepth(6);
+    this.tweens.add({ targets: flash, alpha: 0, scale: 1.15, duration: 220, onComplete: () => flash.destroy() });
+    if (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) <= r + 10) this.hitPlayer(dmg, source);
+  }
+
+  /** Посмертный взрыв Подрывника: фитиль с телеграфом, потом взрыв (§6.7 — всё телеграфируется) */
+  private delayedBlast(x: number, y: number, r: number, dmg: number, source: string, fuseMs: number) {
+    const ring = this.add.circle(x, y, r, 0xff8a3c, 0.1).setStrokeStyle(2, 0xff8a3c, 0.9).setDepth(5);
+    this.tweens.add({ targets: ring, fillAlpha: 0.4, duration: fuseMs, onComplete: () => { ring.destroy(); if (!this.dead && !this.finished) this.blast(x, y, r, dmg, source); } });
   }
 
   /** Всплывающая цифра над точкой (золото, позже — урон) */
@@ -367,11 +388,17 @@ export class ArenaScene extends Phaser.Scene {
     if (this.isEliteRoom) n = Math.round(n * ELITE_ROOM.countMult);
     const maxRanged = Math.floor(n * ROOM.maxRangedShare);
     let ranged = 0;
+    const act = Math.ceil(this.run.room / RUN.roomsPerAct);
+    const composition = ROOM.compositionByAct[Math.min(act, ROOM.compositionByAct.length) - 1] as Record<string, number>;
+    const perRoom = new Map<string, number>();
     const center = new Phaser.Math.Vector2(this.player.x, this.player.y);
     for (let i = 0; i < n; i++) {
-      let id = this.rng.pick<EnemyId>(ROOM.composition);
-      if (id === 'shooter' && ranged >= maxRanged) id = 'rusher';
-      if (id === 'shooter') ranged++;
+      let id = this.rng.pick<EnemyId>(composition);
+      const def = ENEMIES[id] as EnemyDef;
+      if (def.role === 'ranged' && ranged >= maxRanged) id = 'rusher';
+      if (def.maxPerRoom && (perRoom.get(id) ?? 0) >= def.maxPerRoom) id = 'rusher';
+      if ((ENEMIES[id] as EnemyDef).role === 'ranged') ranged++;
+      perRoom.set(id, (perRoom.get(id) ?? 0) + 1);
       const pos = this.spawnPoint(center);
       this.pendingSpawns++;
       this.telegraphSpawn(pos, () => {

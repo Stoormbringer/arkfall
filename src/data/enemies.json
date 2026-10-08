@@ -52,6 +52,109 @@
     },
     "xpWeight": 2
   },
+  "bomber": {
+    "name": "Подрывник",
+    "role": "melee",
+    "color": "0xff8a3c",
+    "radius": 11,
+    "hp": 28,
+    "dmg": 22,
+    "speed": 150,
+    "attack": {
+      "kind": "explode",
+      "range": 70,
+      "aoeRadius": 90,
+      "windupSec": 0.7,
+      "deathFuseSec": 0.45
+    },
+    "xpWeight": 1,
+    "fromAct": 2
+  },
+  "lancer": {
+    "name": "Копейщик",
+    "role": "melee",
+    "color": "0xd8d0ff",
+    "radius": 12,
+    "hp": 45,
+    "dmg": 18,
+    "speed": 140,
+    "attack": {
+      "kind": "lunge",
+      "range": 320,
+      "windupSec": 0.75,
+      "lungeSpeed": 780,
+      "lungeSec": 0.45,
+      "recoverSec": 1.3
+    },
+    "recoverVulnMult": 1.5,
+    "xpWeight": 1,
+    "fromAct": 2
+  },
+  "summoner": {
+    "name": "Призыватель",
+    "role": "ranged",
+    "color": "0x9b6bff",
+    "radius": 12,
+    "hp": 50,
+    "dmg": 0,
+    "speed": 110,
+    "attack": {
+      "kind": "summon",
+      "range": 520,
+      "keepDistance": 300,
+      "windupSec": 0.9,
+      "count": 2,
+      "recoverSec": 2.5,
+      "maxAlive": 12,
+      "summonId": "rusher"
+    },
+    "xpWeight": 2,
+    "fromAct": 3,
+    "maxPerRoom": 1
+  },
+  "shield": {
+    "name": "Щитоносец",
+    "role": "tank",
+    "color": "0x7fa8a0",
+    "radius": 16,
+    "hp": 110,
+    "dmg": 20,
+    "speed": 100,
+    "attack": {
+      "kind": "slam",
+      "range": 70,
+      "aoeRadius": 70,
+      "windupSec": 0.7,
+      "recoverSec": 0.9
+    },
+    "shield": {
+      "frontArcDeg": 150,
+      "frontDamageMult": 0.25
+    },
+    "xpWeight": 2,
+    "fromAct": 3
+  },
+  "orbiter": {
+    "name": "Кружащий стрелок",
+    "role": "ranged",
+    "color": "0x5fd3c9",
+    "radius": 11,
+    "hp": 34,
+    "dmg": 8,
+    "speed": 150,
+    "attack": {
+      "kind": "volley",
+      "range": 360,
+      "orbitRadius": 230,
+      "windupSec": 0.65,
+      "projectileSpeed": 300,
+      "bullets": 3,
+      "spreadDeg": 14,
+      "recoverSec": 1.2
+    },
+    "xpWeight": 1,
+    "fromAct": 3
+  },
   "boss_hammer": {
     "name": "Молот Ковчега",
     "role": "tank",

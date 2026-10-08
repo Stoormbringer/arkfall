@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 // @vitest-environment-options {"resources":"usable","pretendToBeVisual":true}
 import { afterEach, describe, expect, it } from 'vitest';
+import Phaser from 'phaser';
 import { KEYS, killAll, passOverlays, Sim } from './harness';
+import { Enemy } from '../../src/entities/Enemy';
+import ENEMIES from '../../src/data/enemies.json';
+import type { EnemyDef } from '../../src/data/types';
 
 let sim: Sim;
 afterEach(() => sim?.destroy());
@@ -190,5 +194,66 @@ describe('Эхо и Лавка Ковчега (headless)', () => {
     expect(sim.active('hubshop')).toBe(true);
     sim.key('Escape', KEYS.ESC); sim.step(300);
     expect(sim.active('title')).toBe(true);
+  }, 30_000);
+});
+
+describe('новые враги (headless)', () => {
+  type ArenaT = {
+    enemies: Phaser.GameObjects.Group; player: { x: number; y: number; hp: number; invulnUntil: number };
+    run: { tier: number; room: number };
+    damageEnemy: (e: unknown, amount: number, from: Phaser.Math.Vector2, kb: number, src: string) => boolean;
+  };
+  const spawn = async (id: string, room: number) => {
+    sim = await Sim.create(`?tier=1&seed=3&room=${room}`);
+    sim.step(2800);
+    const arena = sim.game.scene.getScene('arena') as unknown as ArenaT;
+    killAll(sim); // комната пустеет и тут же получает нашего врага — до следующего кадра, чтобы не засчиталась зачистка
+    const e = new Enemy(sim.game.scene.getScene('arena'), arena.player.x + 80, arena.player.y, id as never, (ENEMIES as Record<string, EnemyDef>)[id], 1, room);
+    arena.enemies.add(e);
+    return { arena, e };
+  };
+
+  it('акт 3: в комнате появляются новые типы', async () => {
+    const seen = new Set<string>();
+    for (const seed of [3, 4, 5]) {
+      sim = await Sim.create(`?tier=1&seed=${seed}&room=21`);
+      sim.step(2800);
+      const arena = sim.game.scene.getScene('arena') as unknown as ArenaT;
+      for (const e of arena.enemies.getChildren() as Enemy[]) seen.add(e.id);
+      sim.destroy(); sim = undefined as unknown as Sim;
+    }
+    expect([...seen].filter((id) => ['bomber', 'lancer', 'summoner', 'shield', 'orbiter'].includes(id)).length).toBeGreaterThanOrEqual(2);
+  }, 40_000);
+
+  it('Подрывник: убитый взрывается после фитиля и ранит игрока рядом', async () => {
+    const { arena, e } = await spawn('bomber', 2);
+    arena.player.invulnUntil = 0;
+    const hp = arena.player.hp;
+    arena.damageEnemy(e, 9999, new Phaser.Math.Vector2(0, 0), 0, 'test');
+    sim.step(100);
+    expect(arena.player.hp).toBe(hp); // фитиль ещё горит
+    sim.step(600);
+    expect(arena.player.hp).toBeLessThan(hp);
+  }, 30_000);
+
+  it('Щитоносец: удар с фронта гасится, со спины — нет', async () => {
+    const { arena, e } = await spawn('shield', 2);
+    sim.step(50); // facing обновится на игрока (он слева)
+    const hp0 = e.hp;
+    arena.damageEnemy(e, 20, new Phaser.Math.Vector2(arena.player.x, arena.player.y), 0, 'test');
+    const front = hp0 - e.hp;
+    const hp1 = e.hp;
+    arena.damageEnemy(e, 20, new Phaser.Math.Vector2(e.x + 200, e.y), 0, 'test');
+    const back = hp1 - e.hp;
+    expect(front).toBeCloseTo(20 * ENEMIES.shield.shield.frontDamageMult, 5);
+    expect(back).toBe(20);
+  }, 30_000);
+
+  it('Копейщик: в фазе восстановления получает ×1,5 урона', async () => {
+    const { arena, e } = await spawn('lancer', 2);
+    e.phase = 'recover'; e.phaseUntil = 1e12;
+    const hp0 = e.hp;
+    arena.damageEnemy(e, 10, new Phaser.Math.Vector2(0, 0), 0, 'test');
+    expect(hp0 - e.hp).toBeCloseTo(15, 5);
   }, 30_000);
 });

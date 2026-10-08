@@ -4,15 +4,35 @@
     "height": 720,
     "wall": 32,
     "baseCount": 8,
-    "composition": {
-      "rusher": 0.5,
-      "shooter": 0.3,
-      "tank": 0.2
-    },
     "maxRangedShare": 0.4,
     "spawnTelegraphSec": 1.0,
     "clearDelaySec": 2.0,
-    "introDelaySec": 0.7
+    "introDelaySec": 0.7,
+    "compositionByAct": [
+      {
+        "rusher": 0.5,
+        "shooter": 0.3,
+        "tank": 0.2
+      },
+      {
+        "rusher": 0.32,
+        "shooter": 0.22,
+        "tank": 0.14,
+        "bomber": 0.16,
+        "lancer": 0.16
+      },
+      {
+        "rusher": 0.2,
+        "shooter": 0.14,
+        "tank": 0.1,
+        "bomber": 0.12,
+        "lancer": 0.14,
+        "summoner": 0.08,
+        "shield": 0.1,
+        "orbiter": 0.12
+      }
+    ],
+    "_composition": "Доли типов врагов по актам (GDD §7): новые типы вводятся по одному-два на акт"
   },
   "run": {
     "acts": 3,

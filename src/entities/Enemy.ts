@@ -35,6 +35,9 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   pull = new Phaser.Math.Vector2();
   /** куда смотрит (для щита) — последний угол на игрока */
   facing = 0;
+  /** Ядовитая почва */
+  poisonUntil = 0;
+  poisonNextTick = 0;
   /** Подрывник: уже взорвался сам — посмертного взрыва не нужно */
   detonated = false;
   private orbitDir: 1 | -1;

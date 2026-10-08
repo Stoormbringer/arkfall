@@ -6,7 +6,7 @@ import type { SkillCategory, SkillDef } from '../data/types';
 export const SKILLS = Object.fromEntries(Object.entries(SKILLS_RAW).filter(([k]) => !k.startsWith('_'))) as Record<string, SkillDef>;
 
 /** Скиллы, реализованные в бою. Остальные не предлагаются (GDD §C — каталог шире прототипа). */
-export const IMPLEMENTED_SKILLS = ['dash_cut', 'spark', 'blood_rhythm', 'shard_shot', 'gravity_well', 'barrier', 'spike_ground'] as const;
+export const IMPLEMENTED_SKILLS = ['dash_cut', 'spark', 'blood_rhythm', 'shard_shot', 'gravity_well', 'barrier', 'spike_ground', 'riposte', 'echo_strike', 'phantom_blade'] as const;
 
 /**
  * GDD §5.7 / §C.1: 3 скилла из РАЗНЫХ категорий; категории, которых у игрока ещё нет, весят вдвое больше.

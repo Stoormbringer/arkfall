@@ -16,7 +16,8 @@ import { DOORS, ELITE_ROOM, HEAL_DOOR_HP, offerDoors, SHARDS_DOOR_BONUS, type Do
 import { ITEMS, keepOnDeath, rollItem } from '../run/loot';
 import { goldForBoss, goldForEliteRoom, goldForMob, Shop } from '../run/shop';
 import { echoForBoss, echoForEliteRoom, echoRunTotal } from '../meta/echo';
-import { assignKeys, Barrier, createSkill, type Battlefield, type Skill, type SkillView } from '../skills/skills';
+import { assignKeys, Barrier, createSkill, type Battlefield, type Skill, type SkillView, type ZoneOpts } from '../skills/skills';
+import SKILLS from '../data/skills.json';
 import { loadProgress as loadP } from '../meta/Progress';
 import { clearRun, saveRun } from '../meta/RunSave';
 
@@ -34,7 +35,7 @@ export interface ArenaSnapshot {
   ttkSamples: { role: string; sec: number; hits: number }[];
 }
 
-interface Zone { x: number; y: number; r: number; until: number; nextTick: number; dps: number; tickSec: number; slow: number; gfx: Phaser.GameObjects.Arc }
+interface Zone { x: number; y: number; r: number; until: number; nextTick: number; dps: number; tickSec: number; slow: number; gfx: Phaser.GameObjects.Arc; opts: ZoneOpts; rooted: Set<Enemy> }
 interface PlayerBullet extends Projectile { onHit?: (e: Enemy, x: number, y: number) => void }
 
 const ROOM = ROOMS.arena;
@@ -113,6 +114,7 @@ export class ArenaScene extends Phaser.Scene {
 
     this.player = new Player(this, width / 2, height / 2, this.run.mods, this.run.hp ?? undefined);
     this.player.hasRhythm = this.run.skills.includes('blood_rhythm');
+    this.player.hasRiposte = this.run.skills.includes('riposte');
     this.enemies = this.add.group();
     this.bullets = this.physics.add.group({ classType: Projectile, maxSize: 200 });
     this.playerBullets = this.physics.add.group({ classType: Projectile, maxSize: 200 });
@@ -120,11 +122,12 @@ export class ArenaScene extends Phaser.Scene {
     const field: Battlefield = {
       enemies: () => this.enemies.getChildren() as Enemy[],
       damage: (e, amount, from, kb, source) => this.damageEnemy(e, amount, from, kb, source),
-      addZone: (x, y, r, dur, dps, tick, slow) => this.addZone(x, y, r, dur, dps, tick, slow ?? 1),
-      shootPlayer: (x, y, a, sp, d, onHit) => {
+      addZone: (x, y, r, dur, dps, tick, slow, opts) => this.addZone(x, y, r, dur, dps, tick, slow ?? 1, opts),
+      float: (x, y, t, c) => this.floatText(x, y, t, c),
+      shootPlayer: (x, y, a, sp, d, onHit, bounces) => {
         const b = this.playerBullets.get(x, y) as PlayerBullet | null;
         if (!b) return;
-        b.fire(x, y, a, sp, d, 'player');
+        b.fire(x, y, a, sp, d, 'player', bounces ?? 0);
         b.setTint(0xf5f1e6);
         b.onHit = onHit;
       },
@@ -152,6 +155,12 @@ export class ArenaScene extends Phaser.Scene {
       this.hitPlayer(bullet.damage, bullet.source);
     });
     this.physics.add.collider(this.enemies, this.enemies);
+    // Рикошет: снаряд с запасом отскоков отражается от стен, без запаса — гаснет
+    this.physics.world.on('worldbounds', (body: Phaser.Physics.Arcade.Body) => {
+      const p = body.gameObject;
+      if (!(p instanceof Projectile) || !p.active) return;
+      if (p.bounces > 0) p.bounces--; else p.kill();
+    });
 
     this.keys = this.input.keyboard!.addKeys('W,A,S,D,UP,LEFT,DOWN,RIGHT,SPACE,SHIFT,R,Q,E,F,P,ESC') as typeof this.keys;
     this.input.mouse?.disableContextMenu();
@@ -260,13 +269,13 @@ export class ArenaScene extends Phaser.Scene {
   // ---------- урон ----------
 
   /** Единая точка урона по врагу: модификаторы, добивание, TTK, Осколки, лечение за убийство */
-  private damageEnemy(e: Enemy, amount: number, from: Phaser.Math.Vector2, knockback: number, source: string): boolean {
+  private damageEnemy(e: Enemy, amount: number, from: Phaser.Math.Vector2, knockback: number, source: string, ignoreShield = false): boolean {
     if (!e.active) return false;
     e.lastHitBy = source;
-    // Щитоносец: урон с фронта гасится; Копейщик после рывка уязвим
-    if (e.def.shield) {
+    // Щитоносец: урон с фронта гасится (Ломатель щитов ×2, Крещендо пробивает); Копейщик после рывка уязвим
+    if (e.def.shield && !ignoreShield) {
       const diff = Math.abs(Phaser.Math.Angle.Wrap(Phaser.Math.Angle.Between(e.x, e.y, from.x, from.y) - e.facing));
-      if (diff <= Phaser.Math.DegToRad(e.def.shield.frontArcDeg) / 2) { amount *= e.def.shield.frontDamageMult; this.floatText(e.x, e.y - 20, 'щит', '#dfe8e6'); }
+      if (diff <= Phaser.Math.DegToRad(e.def.shield.frontArcDeg) / 2) { amount *= Math.min(1, e.def.shield.frontDamageMult * this.run.mods.shieldDamageMult); this.floatText(e.x, e.y - 20, 'щит', '#dfe8e6'); }
     }
     if (e.isVulnerable) amount *= e.def.recoverVulnMult!;
     const dealt = Math.min(amount, Math.max(0, e.hp));
@@ -308,7 +317,7 @@ export class ArenaScene extends Phaser.Scene {
     this.tweens.add({ targets: t, y: y - 28, alpha: 0, duration: 700, ease: 'Quad.Out', onComplete: () => t.destroy() });
   }
 
-  private resolveMelee(s: { angle: number; radius: number; arcRad: number; damage: number; knockback: number }) {
+  private resolveMelee(s: { angle: number; radius: number; arcRad: number; damage: number; knockback: number; ignoreShield: boolean }) {
     const c = new Phaser.Math.Vector2(this.player.x, this.player.y);
     let hitAny = false;
     for (const e of [...(this.enemies.getChildren() as Enemy[])]) {
@@ -318,14 +327,18 @@ export class ArenaScene extends Phaser.Scene {
       const diff = Math.abs(Phaser.Math.Angle.Wrap(Phaser.Math.Angle.BetweenPoints(c, e) - s.angle));
       if (diff > s.arcRad / 2) continue;
       hitAny = true;
-      this.damageEnemy(e, s.damage, c, s.knockback, 'Дуговой клинок');
+      this.damageEnemy(e, s.damage, c, s.knockback, 'Дуговой клинок', s.ignoreShield);
     }
     if (hitAny) this.player.onMeleeHit();
   }
 
   private hitPlayer(dmg: number, source: string) {
     if (this.dead) return;
-    if (this.player.isInvulnerable) return;
+    if (this.player.isInvulnerable) {
+      // Жало ответа: удар пришёлся в кадры уклонения — парирование
+      if (this.player.hasRiposte && this.player.isDodging) this.onParry();
+      return;
+    }
     const barrier = this.skills.find((s): s is Barrier => s instanceof Barrier);
     if (barrier) { dmg = barrier.absorb(dmg); if (dmg <= 0) { this.player.grantInvuln(150); return; } }
     if (!this.player.takeDamage(dmg, source)) return;
@@ -344,12 +357,19 @@ export class ArenaScene extends Phaser.Scene {
     }
   }
 
+  private onParry() {
+    const r = this.run.mods.riposte;
+    this.player.riposteUntil = this.time.now + (r.windowSec ?? (SKILLS.riposte.base.windowSec as number)) * 1000;
+    if (r.cooldownRefundSec > 0) for (const s of this.skills) s.refund(r.cooldownRefundSec * 1000);
+    this.floatText(this.player.x, this.player.y - 30, 'парирование', '#f5f1e6');
+  }
+
   // ---------- зоны (Шлейф пепла и будущие) ----------
 
-  private addZone(x: number, y: number, r: number, durationSec: number, dps: number, tickSec: number, slow = 1) {
+  private addZone(x: number, y: number, r: number, durationSec: number, dps: number, tickSec: number, slow = 1, opts: ZoneOpts = {}) {
     const color = slow < 1 ? 0x7fd48a : 0xff7a3c;
     const gfx = this.add.circle(x, y, r, color, 0.22).setStrokeStyle(1, color, 0.6).setDepth(3);
-    this.zones.push({ x, y, r, until: this.time.now + durationSec * 1000, nextTick: this.time.now, dps, tickSec, slow, gfx });
+    this.zones.push({ x, y, r, until: this.time.now + durationSec * 1000, nextTick: this.time.now, dps, tickSec, slow, gfx, opts, rooted: new Set() });
   }
 
   private updateZones() {
@@ -362,11 +382,19 @@ export class ArenaScene extends Phaser.Scene {
         for (const e of [...(this.enemies.getChildren() as Enemy[])])
           if (e.active && Phaser.Math.Distance.BetweenPoints(from, e) <= z.r + e.def.radius) {
             if (z.slow < 1) e.applySlow(z.slow, z.tickSec * 1000 + 100);
+            // Корни: первый контакт с зоной обездвиживает
+            if (z.opts.rootSec && !z.rooted.has(e)) { z.rooted.add(e); e.applySlow(0, z.opts.rootSec * 1000); }
+            // Ядовитая почва: яд держится ещё poisonSec после выхода
+            if (z.opts.poisonSec) e.poisonUntil = now + z.opts.poisonSec * 1000;
             this.damageEnemy(e, z.dps * z.tickSec * this.run.mods.damageMult, from, 0, z.slow < 1 ? 'Шипастая земля' : 'Шлейф пепла');
           }
       }
       return true;
     });
+    const dps = this.run.mods.spike.poisonDps;
+    if (dps > 0)
+      for (const e of [...(this.enemies.getChildren() as Enemy[])])
+        if (e.active && now < e.poisonUntil && now >= e.poisonNextTick && !this.zones.some((z) => z.opts.poisonSec && Phaser.Math.Distance.Between(z.x, z.y, e.x, e.y) <= z.r + e.def.radius)) { e.poisonNextTick = now + 500; this.damageEnemy(e, dps * 0.5 * this.run.mods.damageMult, new Phaser.Math.Vector2(e.x, e.y), 0, 'Яд', true); }
   }
 
   // ---------- волны и комнаты ----------

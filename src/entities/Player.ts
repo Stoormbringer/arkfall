@@ -10,9 +10,10 @@ export interface PlayerInput {
   dodge: boolean;
 }
 
-export interface Strike { angle: number; radius: number; arcRad: number; damage: number; knockback: number }
+export interface Strike { angle: number; radius: number; arcRad: number; damage: number; knockback: number; ignoreShield: boolean }
 
 const RHYTHM = SKILLS.blood_rhythm.base;
+const RIPOSTE = SKILLS.riposte.base;
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   hp: number;
@@ -31,6 +32,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   rhythmStacks = 0;
   private rhythmLastHit = 0;
   hasRhythm = false;
+  // Жало ответа: парирование (уклонение сквозь удар) заряжает следующий удар
+  hasRiposte = false;
+  riposteUntil = 0;
   private attackReadyAt = 0;
   private swing: Phaser.GameObjects.Graphics;
   private mods: Mods;
@@ -107,8 +111,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       const arcRad = Phaser.Math.DegToRad(P.weapon.arcDeg);
       this.drawSwing(angle, arcRad);
       let damage = P.weapon.damage * this.mods.damageMult;
+      let radius = P.weapon.radius * this.mods.meleeRadiusMult;
       if (this.mods.echoOfPainArmed) { damage *= 1.5; this.mods.echoOfPainArmed = false; }
-      return { angle, radius: P.weapon.radius * this.mods.meleeRadiusMult, arcRad, damage, knockback: P.weapon.knockback * this.mods.knockbackMult };
+      if (this.hasRiposte && now < this.riposteUntil) { damage *= RIPOSTE.damageMult as number; radius *= RIPOSTE.areaMult as number; this.riposteUntil = 0; }
+      const ignoreShield = this.hasRhythm && this.mods.rhythm.pierceAtMax && this.rhythmStacks >= (RHYTHM.maxStacks as number);
+      return { angle, radius, arcRad, damage, knockback: P.weapon.knockback * this.mods.knockbackMult, ignoreShield };
     }
     return null;
   }

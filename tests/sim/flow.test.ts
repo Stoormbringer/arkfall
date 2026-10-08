@@ -257,3 +257,65 @@ describe('новые враги (headless)', () => {
     expect(hp0 - e.hp).toBeCloseTo(15, 5);
   }, 30_000);
 });
+
+describe('скиллы пакета 28 (headless)', () => {
+  type ArenaT = {
+    enemies: Phaser.GameObjects.Group; player: { x: number; y: number; hp: number; invulnUntil: number; riposteUntil: number; dodgeUntil: number; rhythmStacks: number };
+    skills: { id: string; tryCast: (aim: Phaser.Math.Vector2) => void }[];
+    run: { mods: { shardShot: { bounces: number } } };
+    hitPlayer: (d: number, s: string) => void;
+    damageEnemy: (e: unknown, amount: number, from: Phaser.Math.Vector2, kb: number, src: string) => boolean;
+  };
+  const setup = async (skills: string, enemyId = 'tank') => {
+    sim = await Sim.create(`?tier=1&seed=3&room=2&skills=${skills}`);
+    sim.step(2800);
+    const arena = sim.game.scene.getScene('arena') as unknown as ArenaT;
+    killAll(sim);
+    const e = new Enemy(sim.game.scene.getScene('arena'), arena.player.x + 60, arena.player.y, enemyId as never, (ENEMIES as Record<string, EnemyDef>)[enemyId], 1, 2);
+    arena.enemies.add(e);
+    return { arena, e };
+  };
+
+  it('Эхо-удар: замах, затем урон и оглушение всех рядом', async () => {
+    const { arena, e } = await setup('echo_strike');
+    const hp = e.hp;
+    arena.skills.find((s) => s.id === 'echo_strike')!.tryCast(new Phaser.Math.Vector2(e.x, e.y));
+    sim.step(200);
+    expect(e.hp).toBe(hp); // ещё замах
+    sim.step(500);
+    expect(e.hp).toBeLessThan(hp);
+    expect(e.phase).toBe('stunned');
+  }, 30_000);
+
+  it('Призрачный клинок: кружит и бьёт ближайшего', async () => {
+    const { arena, e } = await setup('phantom_blade');
+    const hp = e.hp;
+    arena.skills.find((s) => s.id === 'phantom_blade')!.tryCast(new Phaser.Math.Vector2(0, 0));
+    sim.step(1500);
+    expect(e.hp).toBeLessThan(hp);
+    expect(sim.snap!.skills.find((s) => s.name === 'Призрачный клинок')!.ready01).toBe(1);
+  }, 30_000);
+
+  it('Жало ответа: удар в кадры уклонения — парирование заряжает окно', async () => {
+    const { arena } = await setup('riposte');
+    expect(arena.player.riposteUntil).toBe(0);
+    arena.player.invulnUntil = 0;
+    arena.hitPlayer(5, 'тест'); // обычный удар — не парирование
+    expect(arena.player.riposteUntil).toBe(0);
+    arena.player.dodgeUntil = 1e12; arena.player.invulnUntil = 1e12;
+    arena.hitPlayer(5, 'тест');
+    expect(arena.player.riposteUntil).toBeGreaterThan(0);
+  }, 30_000);
+
+  it('Ядовитая почва: враг в зоне получает яд, который тикает после', async () => {
+    const { arena, e } = await setup('spike_ground');
+    const run = (arena as unknown as { run: { takeFacet: (id: string) => void } }).run;
+    run.takeFacet('poison_soil');
+    arena.skills.find((s) => s.id === 'spike_ground')!.tryCast(new Phaser.Math.Vector2(e.x, e.y));
+    sim.step(300);
+    expect(e.poisonUntil).toBeGreaterThan(0);
+    expect(e.lastHitBy).toBe('Шипастая земля');
+    sim.step(4500); // зона 4 с кончилась, яд ещё 3 с
+    expect(e.lastHitBy).toBe('Яд');
+  }, 30_000);
+});

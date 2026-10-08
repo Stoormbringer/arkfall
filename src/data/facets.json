@@ -125,7 +125,7 @@
     "name": "Крещендо",
     "rarity": "rare",
     "binds": "blood_rhythm",
-    "effect": "На 5 стаках удары пробивают врагов",
+    "effect": "На 5 стаках удары пробивают щиты",
     "params": {
       "pierceAtMax": true
     }

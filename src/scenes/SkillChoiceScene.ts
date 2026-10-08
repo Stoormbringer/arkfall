@@ -60,6 +60,9 @@ function describe(id: string): string {
     case 'gravity_well': return `Точка в прицеле стягивает врагов в радиусе ${b.radius} px на ${b.durationSec} с. Тяжёлые враги и боссы иммунны.`;
     case 'barrier': return `Пузырь поглощает ${b.absorb} урона; при сломе взрыв ${b.burstDamage} в радиусе ${b.burstRadius}.`;
     case 'spike_ground': return `Зона радиусом ${b.radius} на ${b.durationSec} с: ${b.damage} урона каждые ${b.tickSec} с, замедление ${b.slow * 100} %.`;
+    case 'riposte': return `Пассив. Уклонение сквозь удар врага — парирование: следующий удар клинка в ${b.windowSec} с наносит ×${b.damageMult} урона и бьёт на ×${b.areaMult} дальше.`;
+    case 'echo_strike': return `Замах ${b.windupSec} с на месте, затем удар по всем в радиусе 100: ${b.damage} урона и оглушение ${b.stunSec} с. +${b.rhythmBonusPerStack * 100} % за стак Ритма, Ритм тратится.`;
+    case 'phantom_blade': return `Клинок кружит рядом ${b.durationSec} с и бьёт ближайшего врага каждые ${b.attackSec} с на ${b.damage}. Наследует половину бонуса урона.`;
     default: return '';
   }
 }

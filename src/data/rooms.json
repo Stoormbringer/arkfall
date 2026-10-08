@@ -2,7 +2,7 @@
   "arena": {
     "width": 1280,
     "height": 720,
-    "wall": 32,
+    "wall": 40,
     "baseCount": 8,
     "maxRangedShare": 0.4,
     "spawnTelegraphSec": 1.0,
@@ -32,7 +32,9 @@
         "orbiter": 0.12
       }
     ],
-    "_composition": "Доли типов врагов по актам (GDD §7): новые типы вводятся по одному-два на акт"
+    "_composition": "Доли типов врагов по актам (GDD §7): новые типы вводятся по одному-два на акт",
+    "spriteScale": 1.5,
+    "_wall": "стена = один тайл формы комнаты (layouts.json → tile)"
   },
   "run": {
     "acts": 3,

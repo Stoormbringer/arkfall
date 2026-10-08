@@ -77,7 +77,14 @@ export class DashCut extends Skill {
     this.player.setVelocity(this.dir.x * speed, this.dir.y * speed);
     this.player.grantInvuln(D.base.iframesSec * 1000);
     this.hit.clear();
-    this.trail.clear().lineStyle(6, 0xf5f1e6, 0.6).lineBetween(this.start.x, this.start.y, this.start.x + this.dir.x * D.base.length, this.start.y + this.dir.y * D.base.length);
+    // послеобразы героя вдоль рывка — багровые, тают за 260 мс
+    for (let i = 1; i <= 3; i++) {
+      const t = i / 4;
+      const g = this.scene.add.image(this.start.x + this.dir.x * D.base.length * t, this.start.y + this.dir.y * D.base.length * t, 'sprites', this.player.frame.name)
+        .setScale(this.player.scaleX, this.player.scaleY).setFlipX(this.player.flipX).setTint(0xb02030).setAlpha(0.5).setDepth(9);
+      this.scene.tweens.add({ targets: g, alpha: 0, duration: 260, delay: i * 40, onComplete: () => g.destroy() });
+    }
+    this.trail.clear().lineStyle(6, 0xb02030, 0.5).lineBetween(this.start.x, this.start.y, this.start.x + this.dir.x * D.base.length, this.start.y + this.dir.y * D.base.length);
     this.scene.tweens.add({ targets: this.trail, alpha: { from: 1, to: 0 }, duration: 220, onComplete: () => { this.trail.clear(); this.trail.alpha = 1; } });
   }
   update() {

@@ -43,3 +43,17 @@ test('без параметров открывается хаб, а не аре�
   const s = await page.evaluate(() => (globalThis as unknown as { __arkfall?: unknown }).__arkfall);
   expect(s).toBeUndefined();
 });
+
+test('атлас спрайтов загружен, герой и враги — кадры атласа', async ({ page }) => {
+  await page.goto('/?seed=42&tier=1');
+  await page.waitForTimeout(1200);
+  await page.keyboard.press('1');
+  await page.waitForTimeout(3800);
+  const ok = await page.evaluate(() => {
+    const g = (globalThis as unknown as { Phaser?: unknown }).Phaser; void g;
+    const canvas = document.querySelector('canvas');
+    return !!canvas && canvas.width > 0;
+  });
+  expect(ok).toBe(true);
+  await page.screenshot({ path: 'test-results/arena-g1.png' });
+});

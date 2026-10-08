@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import type { EnemyDef, EnemyId } from '../data/types';
 import { enemyDmg, enemyHp, enemyHpHeavy, enemySpd, telegraphSec } from '../core/formulas';
+import { SPRITE_SCALE } from '../scenes/BootScene';
+import { loadSettings, shake } from '../meta/Settings';
 
 type Phase = 'chase' | 'windup' | 'strike' | 'recover' | 'stunned';
 
@@ -12,6 +14,8 @@ export interface EnemyContext {
   aliveCount?: () => number;
   /** мгновенный взрыв: урон игроку в радиусе + вспышка */
   blast?: (x: number, y: number, radius: number, dmg: number, source: string) => void;
+  /** обход препятствий формы комнаты: желаемый угол → безопасный угол */
+  steer?: (x: number, y: number, want: number, r: number, side: 1 | -1) => number;
 }
 
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
@@ -41,18 +45,26 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   /** Подрывник: уже взорвался сам — посмертного взрыва не нужно */
   detonated = false;
   private orbitDir: 1 | -1;
+  baseScale = 1;
+  /** предпочтительная сторона обхода препятствий — фиксирована, чтобы не дёргаться */
+  private avoidSide: 1 | -1;
   private strikeAngle = 0;
   private struck = false;
   private tele: Phaser.GameObjects.Graphics;
   private hpBar: Phaser.GameObjects.Graphics;
 
   constructor(scene: Phaser.Scene, x: number, y: number, id: EnemyId, def: EnemyDef, tier: number, room: number) {
-    super(scene, x, y, `enemy-${id}`);
+    super(scene, x, y, 'sprites', `${id}_idle0`);
     this.id = id;
     this.def = def;
     scene.add.existing(this);
     scene.physics.add.existing(this);
-    this.setCircle(def.radius, 0, 0);
+    // спрайт 32 px; крупные враги масштабируются под хитбокс
+    const k = SPRITE_SCALE * Math.max(1, (def.radius * 2) / 24);
+    this.baseScale = k;
+    this.setScale(k);
+    this.setCircle(def.radius / k, 16 - def.radius / k, 16 - def.radius / k);
+    this.play(`${id}_idle`);
     this.setCollideWorldBounds(true);
     this.setDepth(8);
     this.maxHp = Math.round(def.role === 'tank' ? enemyHpHeavy(def.hp, tier, room) : enemyHp(def.hp, tier, room));
@@ -64,6 +76,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.tele = scene.add.graphics().setDepth(5);
     this.hpBar = scene.add.graphics().setDepth(12);
     this.orbitDir = (Math.round(x + y) & 1) ? 1 : -1;
+    this.avoidSide = this.orbitDir;
   }
 
   /** Урон уязвимому (Копейщик после рывка) */
@@ -79,6 +92,9 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.setVelocity(dir.x * kb, dir.y * kb);
     this.setTintFill(0xffffff);
     this.scene.time.delayedCall(60, () => this.active && this.clearTint());
+    // отдача формой: короткий «пинок» масштаба
+    const k = this.baseScale;
+    this.scene.tweens.add({ targets: this, scaleX: k * 1.18, scaleY: k * 0.88, duration: 50, yoyo: true, onComplete: () => this.active && this.setScale(k) });
     if (this.hp <= 0) { this.die(); return true; }
     return false;
   }
@@ -95,7 +111,16 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   die() {
     this.tele.destroy();
     this.hpBar.destroy();
+    this.leaveCorpse();
     this.destroy();
+  }
+
+  /** Тело остаётся и тает (настройка «Тела врагов»); Подрывник не оставляет — он взрывается */
+  private leaveCorpse() {
+    if (!loadSettings().corpses || this.def.attack.kind === 'explode' || !this.scene) return;
+    const c = this.scene.add.image(this.x, this.y + 4, 'sprites', `${this.id}_idle0`).setScale(this.baseScale).setFlipX(this.flipX)
+      .setRotation((this.flipX ? -1 : 1) * Math.PI / 2).setTint(0x6a6470).setAlpha(0.85).setDepth(1);
+    this.scene.tweens.add({ targets: c, alpha: 0, duration: 7000, delay: 2500, onComplete: () => c.destroy() });
   }
 
   applySlow(mult: number, ms: number) {
@@ -132,7 +157,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
           this.setVelocity(v.x, v.y);
           if (dist <= atk.range) this.beginWindup(now, toTarget);
         } else {
-          this.scene.physics.velocityFromRotation(toTarget, spd, this.body!.velocity as Phaser.Math.Vector2);
+          const go = ctx.steer ? ctx.steer(me.x, me.y, toTarget, this.def.radius, this.avoidSide) : toTarget;
+          this.scene.physics.velocityFromRotation(go, spd, this.body!.velocity as Phaser.Math.Vector2);
           if (dist <= atk.range) this.beginWindup(now, toTarget);
         }
         break;
@@ -167,12 +193,27 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         break;
       }
     }
+    // Подрывник взрывается прямо в beginStrike и уничтожает себя — дальше тела нет
+    if (!this.active || !this.body) return;
     if (this.pull.lengthSq() > 0 && !this.isBoss && this.def.role !== 'tank') {
       const v = this.body!.velocity as Phaser.Math.Vector2;
       v.add(this.pull);
       this.pull.set(0, 0);
     } else this.pull.set(0, 0);
+    this.updatePose();
     this.drawHp();
+  }
+
+  /** Кадр по фазе: погоня — шаг, замах/удар — атака, остальное — стойка; смотрим в сторону цели */
+  private updatePose() {
+    const v = this.body!.velocity as Phaser.Math.Vector2;
+    if (this.phase === 'windup' || this.phase === 'strike') { this.anims.stop(); this.setFrame(`${this.id}_attack`); }
+    else {
+      const want = v.lengthSq() > 4 ? `${this.id}_walk` : `${this.id}_idle`;
+      if (this.anims.currentAnim?.key !== want || !this.anims.isPlaying) this.play(want, true);
+    }
+    const dx = Math.cos(this.facing);
+    if (Math.abs(dx) > 0.2) this.setFlipX(dx < 0);
   }
 
   private beginWindup(now: number, angle: number) {
@@ -215,6 +256,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       return;
     } else {
       this.phaseUntil = now + 120;
+      if (this.def.role === 'tank') shake(this.scene.cameras.main, 120, this.isBoss ? 0.008 : 0.004);
       const target = ctx.player.getCenter();
       if (Phaser.Math.Distance.BetweenPoints(me, target) <= atk.aoeRadius) ctx.hitPlayer(this.dmg, this.def.name);
       const flash = this.scene.add.circle(me.x, me.y, atk.aoeRadius, 0xffd27a, 0.45).setDepth(6);

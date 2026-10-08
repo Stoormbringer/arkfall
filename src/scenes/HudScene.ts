@@ -4,6 +4,7 @@ import { ttkTarget } from '../core/formulas';
 import { facetDef } from '../run/mods';
 import { ITEMS } from '../run/loot';
 import type { FacetRarity } from '../data/types';
+import { loadSettings } from '../meta/Settings';
 
 const RARITY_HEX: Record<FacetRarity, number> = { common: 0x9aa4b8, rare: 0x6fb7ff, epic: 0xd38bff };
 import type { ArenaSnapshot } from './ArenaScene';
@@ -48,7 +49,12 @@ export class HudScene extends Phaser.Scene {
     this.toast = this.add.text(640, 160, '', { ...style, fontSize: '16px', color: '#f0c75e', backgroundColor: '#0b0d12cc', padding: { x: 10, y: 6 } }).setOrigin(0.5);
     this.bossText = this.add.text(640, 652, '', { ...style, fontSize: '13px', color: '#e0a62f' }).setOrigin(0.5, 1);
     this.banner = this.add.text(640, 330, '', { ...style, fontSize: '28px', align: 'center' }).setOrigin(0.5);
-    this.add.text(640, 696, 'WASD — движение · ЛКМ — удар · ПКМ — рывок · Q — разряд · Space — уклонение · Esc — меню', { ...style, color: '#6f7890', fontSize: '12px' }).setOrigin(0.5, 1);
+    this.add.text(640, 696, 'WASD — движение · ЛКМ — удар · ПКМ — рывок · Q/E/R/F — скиллы · Space — уклонение · I — снаряжение · Esc — меню', { ...style, color: '#6f7890', fontSize: '12px' }).setOrigin(0.5, 1);
+    // вспышка экрана при уроне герою (настройка)
+    const flash = this.add.rectangle(640, 360, 1280, 720, 0xb02030, 0).setDepth(40);
+    const onHurt = () => { if (!loadSettings().flash || !this.scene.isActive()) return; flash.setAlpha(0.28); this.tweens.add({ targets: flash, alpha: 0, duration: 220 }); };
+    this.game.events.on('player-hurt', onHurt);
+    this.events.once('shutdown', () => this.game.events.off('player-hurt', onHurt));
     // Подписка на событие игры снимается при остановке сцены — иначе «призрачный» HUD пишет в уничтоженные объекты
     const handler = (s: ArenaSnapshot) => { if (this.scene.isActive()) this.render(s); };
     this.game.events.on('arena-state', handler);
@@ -117,7 +123,7 @@ export class HudScene extends Phaser.Scene {
     if (s.rhythm > 0 || s.hasRhythm) sk.push(`Ритм ${'|'.repeat(s.rhythm)}${'.'.repeat(5 - s.rhythm)}`);
     this.skillsText.setText(sk.join('    '));
     this.facetsText.setText(s.facets.length ? 'Руны' : '');
-    this.toast.setText(s.toast);
+    this.toast.setText(s.toast).setVisible(s.toast.length > 0); // пустой текст с фоном рисует тёмный прямоугольник
     this.renderIcons(s);
 
     const by = (r: string) => s.ttkSamples.filter((x) => x.role === r);

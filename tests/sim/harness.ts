@@ -6,6 +6,7 @@ import { FacetScene } from '../../src/scenes/FacetScene';
 import { GearScene } from '../../src/scenes/GearScene';
 import { ShopScene } from '../../src/scenes/ShopScene';
 import { HubShopScene } from '../../src/scenes/HubShopScene';
+import { SettingsScene } from '../../src/scenes/SettingsScene';
 import { HudScene } from '../../src/scenes/HudScene';
 import { PauseScene } from '../../src/scenes/PauseScene';
 import { SkillChoiceScene } from '../../src/scenes/SkillChoiceScene';
@@ -27,7 +28,8 @@ export class Sim {
       type: Phaser.HEADLESS, width: 1280, height: 720, parent: undefined,
       audio: { noAudio: true },
       physics: { default: 'arcade' },
-      scene: [BootScene, TitleScene, SkillChoiceScene, GearScene, ArenaScene, HudScene, FacetScene, DoorScene, PauseScene, SummaryScene, ShopScene, HubShopScene],
+      // Порядок = порядок отрисовки: оверлеи поверх арены и HUD идут ПОСЛЕ них, иначе launch() рисует их под ареной
+  scene: [BootScene, TitleScene, SkillChoiceScene, ArenaScene, HudScene, FacetScene, DoorScene, PauseScene, GearScene, SummaryScene, ShopScene, HubShopScene, SettingsScene],
     });
     await new Promise<void>((res) => sim.game.events.once('ready', () => res()));
     sim.game.loop.stop();

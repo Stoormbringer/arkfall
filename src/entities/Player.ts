@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import P from '../data/player.json';
 import SKILLS from '../data/skills.json';
 import type { Mods } from '../run/mods';
+import { SPRITE_SCALE } from '../scenes/BootScene';
+import { shake } from '../meta/Settings';
 
 export interface PlayerInput {
   move: Phaser.Math.Vector2;
@@ -36,11 +38,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   hasRiposte = false;
   riposteUntil = 0;
   private attackReadyAt = 0;
+  private attackPoseUntil = 0;
   private swing: Phaser.GameObjects.Graphics;
   private mods: Mods;
 
   constructor(scene: Phaser.Scene, x: number, y: number, mods: Mods, hp?: number) {
-    super(scene, x, y, 'player');
+    super(scene, x, y, 'sprites', 'hero_idle0');
     this.mods = mods;
     this.maxHp = P.hp + mods.maxHpDelta;
     this.hp = Math.min(this.maxHp, hp ?? this.maxHp);
@@ -48,7 +51,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.dodgeCharges = this.dodgeMax;
     scene.add.existing(this);
     scene.physics.add.existing(this);
-    this.setCircle(P.radius, 0, 0);
+    this.setScale(SPRITE_SCALE);
+    const r = P.radius / SPRITE_SCALE;
+    this.setCircle(r, 16 - r, 16 - r);
+    this.play('hero_idle');
     this.setCollideWorldBounds(true);
     this.setDepth(10);
     this.invulnUntil = scene.time.now + P.spawnInvulnSec * 1000;
@@ -104,12 +110,15 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     else if (this.isDodging) this.setVelocity(this.dodgeDir.x * P.dodge.speed, this.dodgeDir.y * P.dodge.speed);
     else this.setVelocity(input.move.x * P.speed * this.mods.moveSpeedMult, input.move.y * P.speed * this.mods.moveSpeedMult);
     this.setAlpha(this.isInvulnerable ? 0.55 : 1);
+    this.updatePose(input);
 
     if (input.attack && now >= this.attackReadyAt && !this.isDodging && !locked) {
       this.attackReadyAt = now + (P.weapon.cooldownSec * 1000) / this.attackSpeedMult;
       const angle = Phaser.Math.Angle.Between(this.x, this.y, input.aim.x, input.aim.y);
       const arcRad = Phaser.Math.DegToRad(P.weapon.arcDeg);
       this.drawSwing(angle, arcRad);
+      this.attackPoseUntil = now + 160;
+      this.setFlipX(Math.cos(angle) < 0);
       let damage = P.weapon.damage * this.mods.damageMult;
       let radius = P.weapon.radius * this.mods.meleeRadiusMult;
       if (this.mods.echoOfPainArmed) { damage *= 1.5; this.mods.echoOfPainArmed = false; }
@@ -127,13 +136,25 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.lastDamagedAt = this.scene.time.now;
     if (this.mods.echoOfPain) this.mods.echoOfPainArmed = true;
     this.invulnUntil = this.scene.time.now + 350;
-    this.scene.cameras.main.shake(80, 0.004);
+    shake(this.scene.cameras.main, 80, 0.004);
+    this.scene.game.events.emit('player-hurt');
     this.setTintFill(0xffffff);
     this.scene.time.delayedCall(70, () => this.active && this.clearTint());
     return true;
   }
 
   heal(amount: number) { this.hp = Math.min(this.maxHp, this.hp + amount); }
+
+  /** Кадр: удар держится 160 мс, иначе шаг/стойка; смотрим в сторону прицела */
+  private updatePose(input: PlayerInput) {
+    const now = this.scene.time.now;
+    if (now < this.attackPoseUntil) { this.anims.stop(); this.setFrame('hero_attack'); return; }
+    const moving = (this.body!.velocity as Phaser.Math.Vector2).lengthSq() > 1;
+    const want = moving ? 'hero_walk' : 'hero_idle';
+    if (this.anims.currentAnim?.key !== want || !this.anims.isPlaying) this.play(want, true);
+    const dx = input.aim.x - this.x;
+    if (Math.abs(dx) > 8) this.setFlipX(dx < 0);
+  }
 
   private drawSwing(angle: number, arcRad: number) {
     this.swing.clear();

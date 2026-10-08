@@ -133,6 +133,48 @@ describe('пауза, снаряжение и сохранение (headless)', 
     expect(sim.snap!.alive).toBeGreaterThan(0);
   }, 40_000);
 
+  it('I прямо из боя открывает снаряжение; Esc закрывает и возвращает бой', async () => {
+    sim = await Sim.create('');
+    sim.step(300); sim.key('Enter', KEYS.ENTER); sim.step(400); sim.key('Digit1', KEYS.ONE); sim.step(2500);
+    sim.key('KeyI', 73); sim.step(200);
+    expect(sim.active('gear')).toBe(true);
+    expect(sim.paused('arena')).toBe(true);
+    // снаряжение должно рисоваться НАД ареной и HUD (порядок сцен = порядок отрисовки)
+    const order = sim.game.scene.getScenes(true).map((s) => s.scene.key);
+    expect(order.indexOf('gear')).toBeGreaterThan(order.indexOf('hud'));
+    sim.key('Escape', KEYS.ESC); sim.step(300);
+    expect(sim.active('gear')).toBe(false);
+    expect(sim.paused('arena')).toBe(false);
+  }, 30_000);
+
+  it('меню паузы: кнопка «Снаряжение» (клик) открывает экран, пауза уходит', async () => {
+    sim = await Sim.create('');
+    sim.step(300); sim.key('Enter', KEYS.ENTER); sim.step(400); sim.key('Digit1', KEYS.ONE); sim.step(2500);
+    sim.key('Escape', KEYS.ESC); sim.step(200);
+    expect(sim.active('pause')).toBe(true);
+    const pause = sim.game.scene.getScene('pause') as unknown as { actions: Record<string, () => void> };
+    pause.actions.I(); // как клик по кнопке
+    sim.step(200);
+    expect(sim.active('pause')).toBe(false);
+    expect(sim.active('gear')).toBe(true);
+  }, 30_000);
+
+  it('меню паузы → O → настройки поверх арены → Esc → бой продолжается', async () => {
+    sim = await Sim.create('');
+    sim.step(300); sim.key('Enter', KEYS.ENTER); sim.step(400); sim.key('Digit1', KEYS.ONE); sim.step(2500);
+    sim.key('Escape', KEYS.ESC); sim.step(200);
+    sim.key('KeyO', 79); sim.step(200);
+    expect(sim.active('settings')).toBe(true);
+    expect(sim.active('pause')).toBe(false);
+    const order = sim.game.scene.getScenes(true).map((s) => s.scene.key);
+    expect(order.indexOf('settings')).toBeGreaterThan(order.indexOf('hud'));
+    sim.key('Digit1', KEYS.ONE); sim.step(50); // тряска выкл
+    expect(JSON.parse(localStorage.getItem('arkfall.settings.v1')!).shake).toBe(false);
+    sim.key('Escape', KEYS.ESC); sim.step(300);
+    expect(sim.active('settings')).toBe(false);
+    expect(sim.paused('arena')).toBe(false);
+  }, 30_000);
+
   it('снаряжение из меню паузы меняет моды сразу', async () => {
     sim = await Sim.create('');
     sim.step(300); sim.key('Enter', KEYS.ENTER); sim.step(400); sim.key('Digit1', KEYS.ONE); sim.step(2500);
@@ -224,6 +266,17 @@ describe('новые враги (headless)', () => {
     }
     expect([...seen].filter((id) => ['bomber', 'lancer', 'summoner', 'shield', 'orbiter'].includes(id)).length).toBeGreaterThanOrEqual(2);
   }, 40_000);
+
+  it('Подрывник: подбегает и самоподрывается без ошибки, ранит игрока, убийство не засчитывается', async () => {
+    const { arena, e } = await spawn('bomber', 2);
+    arena.player.invulnUntil = 0;
+    const run = (arena as unknown as { run: { kills: number } }).run;
+    const hp = arena.player.hp, kills = run.kills;
+    sim.step(1500); // в 80 px от игрока — замах 0,7 с и взрыв
+    expect(e.active).toBe(false);
+    expect(arena.player.hp).toBeLessThan(hp);
+    expect(run.kills).toBe(kills);
+  }, 30_000);
 
   it('Подрывник: убитый взрывается после фитиля и ранит игрока рядом', async () => {
     const { arena, e } = await spawn('bomber', 2);
@@ -318,4 +371,28 @@ describe('скиллы пакета 28 (headless)', () => {
     sim.step(4500); // зона 4 с кончилась, яд ещё 3 с
     expect(e.lastHitBy).toBe('Яд');
   }, 30_000);
+});
+
+describe('формы комнат (headless)', () => {
+  it('«Коридор»: герой за стеной, враги обходят препятствие и доходят до дистанции удара', async () => {
+    sim = await Sim.create('?tier=1&seed=3&room=2&layout=3');
+    sim.step(2800);
+    type ArenaT = { enemies: Phaser.GameObjects.Group; player: { x: number; y: number; invulnUntil: number; setPosition: (x: number, y: number) => void } };
+    const arena = sim.game.scene.getScene('arena') as unknown as ArenaT;
+    arena.player.setPosition(640, 360); arena.player.invulnUntil = 1e12; // между двумя стенами коридора
+    expect(sim.snap!.layout).toBe('Коридор');
+    sim.step(6000);
+    const near = (arena.enemies.getChildren() as Enemy[]).filter((e) => e.active && Phaser.Math.Distance.Between(e.x, e.y, 640, 360) < 160);
+    expect(near.length).toBeGreaterThan(0);
+  }, 30_000);
+
+  it('никто не появляется внутри колонны ни в одной из 12 форм', async () => {
+    for (let layout = 1; layout < 12; layout++) {
+      sim = await Sim.create(`?tier=1&seed=9&room=25&layout=${layout}`);
+      sim.step(2800);
+      const arena = sim.game.scene.getScene('arena') as unknown as { enemies: Phaser.GameObjects.Group; grid: { blocksWalk: (x: number, y: number) => boolean } };
+      for (const e of arena.enemies.getChildren() as Enemy[]) expect(arena.grid.blocksWalk(e.x, e.y), `форма ${layout} ${e.id}`).toBe(false);
+      sim.destroy(); sim = undefined as unknown as Sim;
+    }
+  }, 60_000);
 });

@@ -20,11 +20,13 @@ import { assignKeys, Barrier, createSkill, type Battlefield, type Skill, type Sk
 import SKILLS from '../data/skills.json';
 import { loadProgress as loadP } from '../meta/Progress';
 import { clearRun, saveRun } from '../meta/RunSave';
+import { pickLayout, RoomGrid, TILE } from '../run/layout';
+import { loadSettings } from '../meta/Settings';
 
 export interface ArenaSnapshot {
   act: number; roomInAct: number; roomsPerAct: number; acts: number;
   boss: { name: string; hp01: number; phase: number } | null;
-  roomTag: string;
+  roomTag: string; layout: string;
   paused: boolean;
   lastError: string;
   tier: number; room: number; seed: number; kills: number; alive: number;
@@ -48,7 +50,7 @@ export class ArenaScene extends Phaser.Scene {
   private bullets!: Phaser.Physics.Arcade.Group;
   private playerBullets!: Phaser.Physics.Arcade.Group;
   private rng!: Rng;
-  private keys!: Record<'W' | 'A' | 'S' | 'D' | 'UP' | 'LEFT' | 'DOWN' | 'RIGHT' | 'SPACE' | 'SHIFT' | 'R' | 'Q' | 'E' | 'F' | 'P' | 'ESC', Phaser.Input.Keyboard.Key>;
+  private keys!: Record<'W' | 'A' | 'S' | 'D' | 'UP' | 'LEFT' | 'DOWN' | 'RIGHT' | 'SPACE' | 'SHIFT' | 'R' | 'Q' | 'E' | 'F' | 'P' | 'ESC' | 'I', Phaser.Input.Keyboard.Key>;
   private skills: Skill[] = [];
   private zones: Zone[] = [];
   private advancing = false;
@@ -63,6 +65,11 @@ export class ArenaScene extends Phaser.Scene {
   private doorPending = false;
   private shopPending = false;
   private shop: Shop | null = null;
+  private grid!: RoomGrid;
+  private heroLight: Phaser.GameObjects.Image | null = null;
+  private emitters = new Map<string, Phaser.GameObjects.Particles.ParticleEmitter>();
+  private obstacles!: Phaser.Physics.Arcade.StaticGroup;
+  private shotBlockers!: Phaser.Physics.Arcade.StaticGroup;
   private waveStarted = false;
   private toast = '';
   private boss: Boss | null = null;
@@ -80,6 +87,8 @@ export class ArenaScene extends Phaser.Scene {
       this.run.room = Number(q.get('room') ?? 1);
     }
     this.rng = new Rng(this.run.seed * 31 + this.run.room);
+    const forced = new URLSearchParams(location.search).get('layout'); // ?layout=3 — посмотреть форму комнаты
+    this.grid = new RoomGrid(forced !== null ? Number(forced) : pickLayout(this.rng, this.run.room, this.run.room % RUN.roomsPerAct === 0));
     this.advancing = false; this.pendingSpawns = 0; this.cleared = false; this.dead = false; this.killer = ''; this.choosing = false;
     this.zones = [];
     this.boss = null; this.finished = false; this.doorPending = false; this.waveStarted = false; this.shopPending = false; this.shop = null;
@@ -104,15 +113,12 @@ export class ArenaScene extends Phaser.Scene {
     if (!this.scene.isActive('hud')) this.scene.launch('hud');
     const { width, height, wall } = ROOM;
     this.physics.world.setBounds(wall, wall, width - wall * 2, height - wall * 2);
-    // Пол: сетка графикой, без TileSprite (он берёт холст из пула и ломается после scene.stop)
-    const floor = this.add.graphics().setDepth(0);
-    floor.fillStyle(0x161a23, 1).fillRect(0, 0, width, height);
-    floor.lineStyle(1, 0x1f2430, 1);
-    for (let x = 0; x <= width; x += 64) floor.lineBetween(x, 0, x, height);
-    for (let y = 0; y <= height; y += 64) floor.lineBetween(0, y, width, y);
-    this.add.rectangle(width / 2, height / 2, width - wall * 2, height - wall * 2).setStrokeStyle(3, 0x2d3444).setDepth(1);
+    this.buildFloor(width, height, wall);
+    this.buildObstacles();
+    this.buildParticles();
 
-    this.player = new Player(this, width / 2, height / 2, this.run.mods, this.run.hp ?? undefined);
+    const start = this.freeNear(width / 2, height / 2, 14);
+    this.player = new Player(this, start.x, start.y, this.run.mods, this.run.hp ?? undefined);
     this.player.hasRhythm = this.run.skills.includes('blood_rhythm');
     this.player.hasRiposte = this.run.skills.includes('riposte');
     this.enemies = this.add.group();
@@ -128,7 +134,6 @@ export class ArenaScene extends Phaser.Scene {
         const b = this.playerBullets.get(x, y) as PlayerBullet | null;
         if (!b) return;
         b.fire(x, y, a, sp, d, 'player', bounces ?? 0);
-        b.setTint(0xf5f1e6);
         b.onHit = onHit;
       },
     };
@@ -155,6 +160,12 @@ export class ArenaScene extends Phaser.Scene {
       this.hitPlayer(bullet.damage, bullet.source);
     });
     this.physics.add.collider(this.enemies, this.enemies);
+    this.physics.add.collider(this.player, this.obstacles);
+    this.physics.add.collider(this.enemies, this.obstacles);
+    // снаряды гаснут о колонны (ямы пролетают)
+    const killShot: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (a, b) => { const p = a instanceof Projectile ? a : b; if (p instanceof Projectile && p.active) p.kill(); };
+    this.physics.add.overlap(this.bullets, this.shotBlockers, killShot);
+    this.physics.add.overlap(this.playerBullets, this.shotBlockers, killShot);
     // Рикошет: снаряд с запасом отскоков отражается от стен, без запаса — гаснет
     this.physics.world.on('worldbounds', (body: Phaser.Physics.Arcade.Body) => {
       const p = body.gameObject;
@@ -162,7 +173,7 @@ export class ArenaScene extends Phaser.Scene {
       if (p.bounces > 0) p.bounces--; else p.kill();
     });
 
-    this.keys = this.input.keyboard!.addKeys('W,A,S,D,UP,LEFT,DOWN,RIGHT,SPACE,SHIFT,R,Q,E,F,P,ESC') as typeof this.keys;
+    this.keys = this.input.keyboard!.addKeys('W,A,S,D,UP,LEFT,DOWN,RIGHT,SPACE,SHIFT,R,Q,E,F,P,ESC,I') as typeof this.keys;
     this.input.mouse?.disableContextMenu();
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (p.rightButtonDown() && !this.dead && !this.choosing) this.skills.find((s) => s.id === 'dash_cut')?.tryCast(new Phaser.Math.Vector2(p.worldX, p.worldY));
@@ -172,15 +183,17 @@ export class ArenaScene extends Phaser.Scene {
     const onReroll = () => this.onFacetReroll();
     const onResume = () => { this.scene.resume(); this.emit(); };
     const onDoor = (r: DoorReward) => this.onDoorChosen(r);
-    const onGear = () => { this.scene.launch('gear', { run: this.run }); };
+    const onGear = () => this.openGear();
     const onGearClosed = () => { this.applyModsToPlayer(); this.scene.resume(); this.emit(); };
     const onExit = () => this.exitToHub();
     const onShopHeal = (hp: number) => { this.player.heal(hp); this.run.hp = this.player.hp; this.emit(); };
     const onShopClosed = () => this.onShopClosed();
+    const onSettings = () => { if (this.scene.isActive('pause')) this.scene.stop('pause'); this.scene.launch('settings', { fromArena: true }); this.scene.bringToTop('settings'); };
+    const onSettingsClosed = () => { this.scene.resume(); this.emit(); };
     this.game.events.on('facet-chosen', onChosen).on('facet-reroll', onReroll).on('resume-arena', onResume).on('door-chosen', onDoor)
-      .on('open-gear', onGear).on('gear-closed', onGearClosed).on('exit-to-hub', onExit).on('shop-heal', onShopHeal).on('shop-closed', onShopClosed);
+      .on('open-gear', onGear).on('gear-closed', onGearClosed).on('exit-to-hub', onExit).on('shop-heal', onShopHeal).on('shop-closed', onShopClosed).on('open-settings', onSettings).on('settings-closed', onSettingsClosed);
     this.events.once('shutdown', () => this.game.events.off('facet-chosen', onChosen).off('facet-reroll', onReroll).off('resume-arena', onResume).off('door-chosen', onDoor)
-      .off('open-gear', onGear).off('gear-closed', onGearClosed).off('exit-to-hub', onExit).off('shop-heal', onShopHeal).off('shop-closed', onShopClosed));
+      .off('open-gear', onGear).off('gear-closed', onGearClosed).off('exit-to-hub', onExit).off('shop-heal', onShopHeal).off('shop-closed', onShopClosed).off('open-settings', onSettings).off('settings-closed', onSettingsClosed));
 
     // Контрольная точка: начало каждой комнаты (GDD §5.5)
     if (!this.isTestRun) saveRun(this.run.toSave());
@@ -202,9 +215,102 @@ export class ArenaScene extends Phaser.Scene {
     this.emit();
   }
 
+  /** Эмиттеры частиц по материалам: один на кадр, взрыв по событию. Количество — по настройке */
+  private buildParticles() {
+    this.emitters.clear();
+    for (const frame of ['p_blood', 'p_ichor', 'p_bone', 'p_spark', 'p_fire', 'p_magic', 'p_steel', 'p_crimson']) {
+      const e = this.add.particles(0, 0, 'sprites', { frame, emitting: false, speed: { min: 60, max: 220 }, lifespan: { min: 250, max: 550 }, scale: { start: 1.6, end: 0.4 }, alpha: { start: 1, end: 0.2 }, rotate: { min: 0, max: 360 } }).setDepth(13);
+      if (frame === 'p_fire' || frame === 'p_spark' || frame === 'p_magic') e.setBlendMode(Phaser.BlendModes.ADD);
+      this.emitters.set(frame, e);
+    }
+  }
+
+  private burst(frame: string, x: number, y: number, n: number) {
+    const s = loadSettings().particles;
+    if (s === 'off') return;
+    this.emitters.get(frame)?.explode(Math.max(1, Math.round(n * (s === 'low' ? 0.4 : 1))), x, y);
+  }
+
+  /** Материал врага: чем он брызжет при ударе и гибели */
+  private materialOf(e: Enemy): string[] {
+    switch (e.id) {
+      case 'lancer': case 'shield': return ['p_bone'];
+      case 'bomber': return ['p_ichor', 'p_fire'];
+      case 'shooter': case 'summoner': return ['p_magic', 'p_blood'];
+      case 'orbiter': return ['p_ichor', 'p_magic'];
+      case 'boss_hammer': return ['p_blood', 'p_spark'];
+      default: return ['p_blood'];
+    }
+  }
+
+  /** Препятствия формы комнаты: тайлы + статические тела. Колонны блокируют всё, ямы — только ходьбу */
+  private buildObstacles() {
+    this.obstacles = this.physics.add.staticGroup();
+    this.shotBlockers = this.physics.add.staticGroup();
+    for (const { cx, cy, cell } of this.grid.obstacles()) {
+      const x = cx * TILE + TILE / 2, y = cy * TILE + TILE / 2;
+      if (this.game.renderer) this.add.image(x, y, 'sprites', cell === '#' ? 'pillar' : 'pit').setScale(TILE / 32).setDepth(2);
+      const body = this.add.rectangle(x, y, TILE, TILE).setVisible(false);
+      this.obstacles.add(body);
+      if (cell === '#') this.shotBlockers.add(this.add.rectangle(x, y, TILE, TILE).setVisible(false));
+    }
+  }
+
+  /** Ближайшая свободная точка к (x, y) для тела радиуса r — по спирали клеток */
+  private freeNear(x: number, y: number, r: number): Phaser.Math.Vector2 {
+    if (this.grid.isFree(x, y, r)) return new Phaser.Math.Vector2(x, y);
+    for (let ring = 1; ring < 8; ring++)
+      for (let dy = -ring; dy <= ring; dy++) for (let dx = -ring; dx <= ring; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
+        const px = x + dx * TILE, py = y + dy * TILE;
+        if (this.grid.isFree(px, py, r)) return new Phaser.Math.Vector2(px, py);
+      }
+    return new Phaser.Math.Vector2(x, y);
+  }
+
+  /** Пол и стены из тайлов атласа одним Blitter'ом (без TileSprite — он берёт холст из пула и ломается после scene.stop).
+   *  В headless рендерера нет — остаётся простая сетка. */
+  private buildFloor(width: number, height: number, wall: number) {
+    if (!this.game.renderer) {
+      const floor = this.add.graphics().setDepth(0);
+      floor.fillStyle(0x161a23, 1).fillRect(0, 0, width, height);
+      return;
+    }
+    // тайлы атласа 32 px → клетка 40 px. Blitter не умеет масштаб (в WebGL он рисует кадры 1:1, поэтому пол выходил 1024×576
+    // и расходился с телами препятствий на сетке 40 px) — рисуем один раз в RenderTexture через масштабированный образец
+    const floorRng = new Rng(this.run.seed * 7 + this.run.room * 13);
+    const cols = Math.ceil(width / TILE), rows = Math.ceil(height / TILE);
+    const rt = this.add.renderTexture(0, 0, cols * TILE, rows * TILE).setOrigin(0, 0).setDepth(0);
+    const stamp = this.make.image({ x: 0, y: 0, key: 'sprites', frame: 'floor0', add: false }).setOrigin(0, 0).setScale(TILE / 32);
+    rt.beginDraw();
+    for (let cy = 0; cy < rows; cy++)
+      for (let cx = 0; cx < cols; cx++) {
+        const x = cx * TILE, y = cy * TILE;
+        const isWall = x < wall || y < wall || x >= width - wall || y >= height - wall;
+        const frame = isWall ? (y < wall ? 'wall_top' : 'wall') : floorRng.next() < 0.8 ? 'floor0' : floorRng.next() < 0.5 ? 'floor1' : 'floor2';
+        stamp.setFrame(frame);
+        rt.batchDraw(stamp, x, y);
+      }
+    rt.endDraw();
+    stamp.destroy();
+    // факелы на верхней стене с живым светом
+    for (let cx = 3; cx < cols - 2; cx += 6) {
+      const tx = cx * TILE + TILE / 2, ty = wall - 6;
+      const t = this.add.sprite(tx, ty, 'sprites', 'torch0').setScale(TILE / 32).setDepth(3);
+      t.play('torch');
+      const glow = this.add.image(tx, ty + 10, 'glow').setScale(2.6).setTint(0xffa040).setAlpha(0.35).setBlendMode(Phaser.BlendModes.ADD).setDepth(2);
+      this.tweens.add({ targets: glow, alpha: { from: 0.28, to: 0.42 }, scale: { from: 2.4, to: 2.8 }, duration: 380 + (cx % 3) * 90, yoyo: true, repeat: -1 });
+    }
+    // свет героя — холодный, следует за ним
+    this.heroLight = this.add.image(0, 0, 'glow').setScale(4.2).setTint(0x9fc8ff).setAlpha(0.22).setBlendMode(Phaser.BlendModes.ADD).setDepth(2);
+    // виньетка: тёмные края, чтобы бой читался в центре
+    const v = this.add.graphics().setDepth(1);
+    for (let i = 0; i < 6; i++) v.lineStyle(28, 0x05070b, 0.09 * (6 - i)).strokeRect(wall - 14 + i * 14, wall - 14 + i * 14, width - wall * 2 + 28 - i * 28, height - wall * 2 + 28 - i * 28);
+  }
+
   /** Короткий вход в комнату: подпись, затем телеграфы появления */
   private roomIntro(then: () => void) {
-    const tag = this.run.nextDoor && this.run.nextDoor !== 'boss' ? ` · ${DOORS[this.run.nextDoor].name}` : this.isBossRoom ? ' · Логово' : '';
+    const tag = (this.run.nextDoor && this.run.nextDoor !== 'boss' ? ` · ${DOORS[this.run.nextDoor].name}` : this.isBossRoom ? ' · Логово' : '') + (this.grid.index ? ` · ${this.grid.def.name}` : '');
     const t = this.add.text(ROOM.width / 2, ROOM.height / 2 - 40, `Акт ${Math.ceil(this.run.room / RUN.roomsPerAct)} · Комната ${((this.run.room - 1) % RUN.roomsPerAct) + 1}${tag}`, { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: '22px', color: '#9aa4b8' }).setOrigin(0.5).setDepth(20).setAlpha(0);
     this.tweens.add({ targets: t, alpha: { from: 0, to: 1 }, duration: 200, yoyo: true, hold: 900, onComplete: () => t.destroy() });
     // На время входа держим «ожидающее появление», чтобы комната не считалась пройденной
@@ -230,6 +336,7 @@ export class ArenaScene extends Phaser.Scene {
       this.emit(true);
       return;
     }
+    if (Phaser.Input.Keyboard.JustDown(this.keys.I)) { this.scene.pause(); this.openGear(); this.emit(true); return; }
 
     const move = new Phaser.Math.Vector2(
       (this.keys.D.isDown || this.keys.RIGHT.isDown ? 1 : 0) - (this.keys.A.isDown || this.keys.LEFT.isDown ? 1 : 0),
@@ -243,6 +350,7 @@ export class ArenaScene extends Phaser.Scene {
     const strike = this.player.handleInput({ move, aim, attack: ptr.leftButtonDown(), dodge }, locked);
     if (strike) this.resolveMelee(strike);
     this.player.regen(deltaMs / 1000);
+    this.heroLight?.setPosition(this.player.x, this.player.y);
     for (const k of ['Q', 'E', 'R', 'F'] as const)
       if (Phaser.Input.Keyboard.JustDown(this.keys[k])) this.skills.find((s) => s.key === k)?.tryCast(aim);
     for (const s of this.skills) s.update(deltaMs / 1000);
@@ -253,10 +361,12 @@ export class ArenaScene extends Phaser.Scene {
       shoot: (x: number, y: number, a: number, sp: number, d: number, src: string) => (this.bullets.get(x, y) as Projectile | null)?.fire(x, y, a, sp, d, src),
       hitPlayer: (d: number, src: string) => this.hitPlayer(d, src),
       aliveCount: () => this.enemies.countActive(true) + this.pendingSpawns,
+      steer: (x: number, y: number, want: number, r: number, side: 1 | -1) => this.grid.steer(x, y, want, r, side),
       blast: (x: number, y: number, r: number, d: number, src: string) => this.blast(x, y, r, d, src),
       spawnAdd: (x: number, y: number, id: 'rusher' | 'shooter') => {
         this.pendingSpawns++;
-        this.telegraphSpawn(new Phaser.Math.Vector2(x, y), () => { this.pendingSpawns--; this.enemies.add(new Enemy(this, x, y, id, ENEMIES[id] as EnemyDef, this.run.tier, this.run.room)); });
+        const p = this.freeNear(x, y, 12);
+        this.telegraphSpawn(p, () => { this.pendingSpawns--; this.enemies.add(new Enemy(this, p.x, p.y, id, ENEMIES[id] as EnemyDef, this.run.tier, this.run.room)); });
       },
     };
     for (const e of this.enemies.getChildren() as Enemy[]) e.update(ctx);
@@ -275,11 +385,15 @@ export class ArenaScene extends Phaser.Scene {
     // Щитоносец: урон с фронта гасится (Ломатель щитов ×2, Крещендо пробивает); Копейщик после рывка уязвим
     if (e.def.shield && !ignoreShield) {
       const diff = Math.abs(Phaser.Math.Angle.Wrap(Phaser.Math.Angle.Between(e.x, e.y, from.x, from.y) - e.facing));
-      if (diff <= Phaser.Math.DegToRad(e.def.shield.frontArcDeg) / 2) { amount *= Math.min(1, e.def.shield.frontDamageMult * this.run.mods.shieldDamageMult); this.floatText(e.x, e.y - 20, 'щит', '#dfe8e6'); }
+      if (diff <= Phaser.Math.DegToRad(e.def.shield.frontArcDeg) / 2) { amount *= Math.min(1, e.def.shield.frontDamageMult * this.run.mods.shieldDamageMult); this.floatText(e.x, e.y - 20, 'щит', '#dfe8e6'); this.burst('p_steel', e.x, e.y, 6); }
     }
     if (e.isVulnerable) amount *= e.def.recoverVulnMult!;
     const dealt = Math.min(amount, Math.max(0, e.hp));
+    const mats = this.materialOf(e);
     let killed = e.takeDamage(amount, from, knockback);
+    const ex = e.x, ey = e.y; // после смерти объект уничтожен — координаты берём заранее
+    this.burst(mats[0], ex, ey, killed ? 14 : 4);
+    if (mats[1]) this.burst(mats[1], ex, ey, killed ? 8 : 2);
     if (this.run.mods.lifesteal > 0 && source === 'Дуговой клинок') this.player.heal(dealt * this.run.mods.lifesteal);
     if (!killed && this.run.mods.executeBelow > 0 && e.hp / e.maxHp < this.run.mods.executeBelow) { e.die(); killed = true; }
     if (killed) {
@@ -342,6 +456,7 @@ export class ArenaScene extends Phaser.Scene {
     const barrier = this.skills.find((s): s is Barrier => s instanceof Barrier);
     if (barrier) { dmg = barrier.absorb(dmg); if (dmg <= 0) { this.player.grantInvuln(150); return; } }
     if (!this.player.takeDamage(dmg, source)) return;
+    this.burst('p_crimson', this.player.x, this.player.y, 8);
     if (this.player.hp <= 0) {
       if (this.run.mods.lastBreath && !this.run.mods.lastBreathUsed) {
         this.run.mods.lastBreathUsed = true;
@@ -433,7 +548,7 @@ export class ArenaScene extends Phaser.Scene {
         this.pendingSpawns--;
         const e = new Enemy(this, pos.x, pos.y, id, ENEMIES[id] as EnemyDef, this.run.tier, this.run.room);
         e.windupMs *= this.run.mods.enemyWindupMult;
-        if (this.isEliteRoom) { e.hp = Math.round(e.hp * ELITE_ROOM.hpMult); (e as { maxHp: number }).maxHp = e.hp; e.setScale(1.15); }
+        if (this.isEliteRoom) { e.hp = Math.round(e.hp * ELITE_ROOM.hpMult); (e as { maxHp: number }).maxHp = e.hp; e.setScale(e.scale * 1.15).setTint(0xffd9a0); }
         this.enemies.add(e);
       });
     }
@@ -448,9 +563,9 @@ export class ArenaScene extends Phaser.Scene {
         : side === 1 ? new Phaser.Math.Vector2(width - wall - 40, wall + t * (height - wall * 2))
         : side === 2 ? new Phaser.Math.Vector2(wall + t * (width - wall * 2), wall + 40)
         : new Phaser.Math.Vector2(wall + t * (width - wall * 2), height - wall - 40);
-      if (Phaser.Math.Distance.BetweenPoints(p, center) > 260) return p;
+      if (Phaser.Math.Distance.BetweenPoints(p, center) > 260 && this.grid.isFree(p.x, p.y, 14)) return p;
     }
-    return new Phaser.Math.Vector2(wall + 40, wall + 40);
+    return this.freeNear(wall + 40, wall + 40, 14);
   }
 
   private telegraphSpawn(p: Phaser.Math.Vector2, onDone: () => void) {
@@ -532,6 +647,14 @@ export class ArenaScene extends Phaser.Scene {
     this.time.delayedCall(120, () => { this.run.onRoomAdvance(); this.scene.restart({ run: this.run }); });
   }
 
+  /** Снаряжение поверх паузы арены: из меню паузы или по I прямо из боя */
+  private openGear() {
+    if (this.scene.isActive('gear')) return;
+    if (this.scene.isActive('pause')) this.scene.stop('pause');
+    this.scene.launch('gear', { run: this.run });
+    this.scene.bringToTop('gear'); // страховка от порядка сцен: оверлей всегда над ареной и HUD
+  }
+
   private onShopClosed() {
     if (!this.shopPending) return;
     this.closeOverlay();
@@ -553,7 +676,7 @@ export class ArenaScene extends Phaser.Scene {
 
   private exitToHub() {
     if (!this.isTestRun) saveRun(this.run.toSave());
-    for (const k of ['hud', 'facet', 'door', 'gear', 'shop']) if (this.scene.isActive(k)) this.scene.stop(k);
+    for (const k of ['hud', 'facet', 'door', 'gear', 'shop', 'settings']) if (this.scene.isActive(k)) this.scene.stop(k);
     this.scene.stop();
     this.scene.start('title');
   }
@@ -608,7 +731,7 @@ export class ArenaScene extends Phaser.Scene {
     const snap: ArenaSnapshot = {
       act: Math.ceil(this.run.room / RUN.roomsPerAct), roomInAct: ((this.run.room - 1) % RUN.roomsPerAct) + 1, roomsPerAct: RUN.roomsPerAct, acts: RUN.acts,
       boss: this.boss && this.boss.active ? { name: this.boss.def.name, hp01: this.boss.hp / this.boss.maxHp, phase: this.boss.bossPhase } : null,
-      roomTag: this.run.nextDoor && this.run.nextDoor !== 'boss' ? DOORS[this.run.nextDoor].name : '',
+      roomTag: this.run.nextDoor && this.run.nextDoor !== 'boss' ? DOORS[this.run.nextDoor].name : '', layout: this.grid.def.name,
       paused, lastError: (globalThis as unknown as { __arkfallError?: string }).__arkfallError ?? '',
       tier: this.run.tier, room: this.run.room, seed: this.run.seed, kills: this.run.kills,
       alive: this.enemies.countActive(true), cleared: this.cleared, dead: this.dead, killer: this.killer,

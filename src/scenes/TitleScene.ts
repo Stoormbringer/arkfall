@@ -30,8 +30,8 @@ export class TitleScene extends Phaser.Scene {
     this.seed = Math.floor(Math.random() * 1_000_000);
     const mono = { fontFamily: 'ui-monospace, Menlo, monospace', color: '#e8e4d8' };
 
-    this.add.text(640, 150, 'КОВЧЕГ: БЕЗДНА СЛОЁВ', { ...mono, fontSize: '40px' }).setOrigin(0.5);
-    this.add.text(640, 196, 'прототип · этап 1', { ...mono, fontSize: '14px', color: '#6f7890' }).setOrigin(0.5);
+    this.add.text(640, 150, 'КОВЧЕГ: БЕСКОНЕЧНАЯ БЕЗДНА', { ...mono, fontSize: '40px' }).setOrigin(0.5);
+    this.add.text(640, 196, 'этап графики · G1', { ...mono, fontSize: '14px', color: '#6f7890' }).setOrigin(0.5);
 
     this.tierText = this.add.text(640, 300, '', { ...mono, fontSize: '28px' }).setOrigin(0.5);
     this.add.text(640, 336, '← → — выбрать Тир', { ...mono, fontSize: '13px', color: '#6f7890' }).setOrigin(0.5);
@@ -66,6 +66,9 @@ export class TitleScene extends Phaser.Scene {
     const shopBtn = this.add.rectangle(760, 570, 220, 36, 0x161a23).setStrokeStyle(1, 0x8fd3ff).setInteractive({ useHandCursor: true });
     this.add.text(760, 570, 'Лавка Ковчега  (L)', { ...mono, fontSize: '14px' }).setOrigin(0.5);
     shopBtn.on('pointerdown', () => this.scene.start('hubshop'));
+    const setBtn = this.add.rectangle(1000, 570, 200, 36, 0x161a23).setStrokeStyle(1, 0x6f7890).setInteractive({ useHandCursor: true });
+    this.add.text(1000, 570, 'Настройки  (O)', { ...mono, fontSize: '14px' }).setOrigin(0.5);
+    setBtn.on('pointerdown', () => this.scene.start('settings'));
     this.statsText = this.add.text(640, 650, '', { ...mono, fontSize: '13px', color: '#9aa4b8', align: 'center' }).setOrigin(0.5);
     this.add.text(640, 690, 'Забег: 3 акта × 10 комнат, босс в конце каждого акта. Живой выход после третьего босса открывает следующий Тир. · Ctrl+Shift+Del — сброс прогресса', { ...mono, fontSize: '11px', color: '#6f7890' }).setOrigin(0.5);
 
@@ -77,6 +80,7 @@ export class TitleScene extends Phaser.Scene {
     kb.on('keydown-N', () => { if (this.hasSaved) this.dive(); });
     kb.on('keydown-I', () => this.scene.start('gear'));
     kb.on('keydown-L', () => this.scene.start('hubshop'));
+    kb.on('keydown-O', () => this.scene.start('settings'));
     kb.on('keydown-DELETE', (e: KeyboardEvent) => { if (e.ctrlKey && e.shiftKey) { this.progress = resetProgress(); this.tier = 1; this.render(); } });
     this.render();
   }

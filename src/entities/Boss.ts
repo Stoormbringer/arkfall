@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { EnemyDef, EnemyId } from '../data/types';
 import { Enemy, type EnemyContext } from './Enemy';
+import { shake } from '../meta/Settings';
 
 /**
  * Молот Ковчега — босс-заглушка пакета 3. Две фазы:
@@ -31,7 +32,7 @@ export class Boss extends Enemy {
         const a = Math.PI / 2 + (i === 0 ? -0.7 : 0.7);
         ctx.spawnAdd?.(this.x + Math.cos(a) * 110, this.y + Math.sin(a) * 110, 'rusher');
       }
-      this.scene.cameras.main.shake(250, 0.01);
+      shake(this.scene.cameras.main, 250, 0.01);
       const flash = this.scene.add.circle(this.x, this.y, this.def.radius * 3, 0xe0a62f, 0.5).setDepth(6);
       this.scene.tweens.add({ targets: flash, alpha: 0, scale: 2, duration: 400, onComplete: () => flash.destroy() });
     }

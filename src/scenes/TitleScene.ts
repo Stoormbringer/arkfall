@@ -7,6 +7,7 @@ import { clearRun, loadRun } from '../meta/RunSave';
 import { keepOnDeath } from '../run/loot';
 import { recordRun } from '../meta/Progress';
 import { echoRunTotal } from '../meta/echo';
+import { backdrop, button, mono, panel, UI } from '../ui/theme';
 
 /** Стартовый экран: выбор Тира из открытых, сид, «Нырнуть». */
 export class TitleScene extends Phaser.Scene {
@@ -16,6 +17,7 @@ export class TitleScene extends Phaser.Scene {
   private tierText!: Phaser.GameObjects.Text;
   private seedText!: Phaser.GameObjects.Text;
   private statsText!: Phaser.GameObjects.Text;
+  private tierHint!: Phaser.GameObjects.Text;
   private levelText!: Phaser.GameObjects.Text;
   private hasSaved = false;
 
@@ -28,49 +30,54 @@ export class TitleScene extends Phaser.Scene {
     if (this.progress.pendingMilestones.length) { this.scene.start('skillchoice'); return; }
     this.tier = this.progress.unlockedTier;
     this.seed = Math.floor(Math.random() * 1_000_000);
-    const mono = { fontFamily: 'ui-monospace, Menlo, monospace', color: '#e8e4d8' };
+    backdrop(this);
 
-    this.add.text(640, 150, 'КОВЧЕГ: БЕСКОНЕЧНАЯ БЕЗДНА', { ...mono, fontSize: '40px' }).setOrigin(0.5);
-    this.add.text(640, 196, 'этап графики · G1', { ...mono, fontSize: '14px', color: '#6f7890' }).setOrigin(0.5);
+    // левая колонна — герой в свете факелов
+    if (this.game.renderer) {
+      panel(this, 250, 390, 340, 440, UI.stone);
+      const t1 = this.add.sprite(130, 190, 'sprites', 'torch0').setScale(2).setDepth(3); t1.play('torch');
+      const t2 = this.add.sprite(370, 190, 'sprites', 'torch0').setScale(2).setDepth(3); t2.play('torch');
+      for (const x of [130, 370]) {
+        const glow = this.add.image(x, 205, 'glow').setScale(3.4).setTint(0xffa040).setAlpha(0.35).setBlendMode(Phaser.BlendModes.ADD);
+        this.tweens.add({ targets: glow, alpha: { from: 0.28, to: 0.42 }, duration: 420, yoyo: true, repeat: -1 });
+      }
+      const hero = this.add.sprite(250, 400, 'sprites', 'hero_idle0').setScale(7);
+      hero.play('hero_idle');
+      this.add.image(250, 430, 'glow').setScale(5).setTint(0x9fc8ff).setAlpha(0.18).setBlendMode(Phaser.BlendModes.ADD);
+    }
 
-    this.tierText = this.add.text(640, 300, '', { ...mono, fontSize: '28px' }).setOrigin(0.5);
-    this.add.text(640, 336, '← → — выбрать Тир', { ...mono, fontSize: '13px', color: '#6f7890' }).setOrigin(0.5);
-    this.seedText = this.add.text(640, 390, '', { ...mono, fontSize: '14px', color: '#9aa4b8' }).setOrigin(0.5);
-    this.add.text(640, 412, 'S — другой сид', { ...mono, fontSize: '13px', color: '#6f7890' }).setOrigin(0.5);
+    this.add.text(640, 70, 'КОВЧЕГ', mono(13, UI.gold, { letterSpacing: 10 })).setOrigin(0.5);
+    this.add.text(640, 108, 'БЕСКОНЕЧНАЯ БЕЗДНА', mono(40)).setOrigin(0.5);
+    const line = this.add.graphics(); line.lineStyle(1, UI.crimsonHex, 0.8).lineBetween(480, 140, 800, 140); line.fillStyle(UI.crimsonHex, 1).fillRect(637, 137, 6, 6);
+    this.add.text(640, 158, 'этап графики · G4', mono(12, UI.dim)).setOrigin(0.5);
+
+    // правая колонна — забег
+    const cx = 830;
+    panel(this, cx, 390, 700, 440, UI.stoneHi);
+    this.tierText = this.add.text(cx, 220, '', mono(26)).setOrigin(0.5);
+    this.tierHint = this.add.text(cx, 250, '', mono(12, UI.dim)).setOrigin(0.5);
+    this.seedText = this.add.text(cx, 282, '', mono(13, UI.dim)).setOrigin(0.5);
 
     const saved = loadRun();
     if (saved) {
       const act = Math.ceil(saved.room / 10), rm = ((saved.room - 1) % 10) + 1;
-      const cont = this.add.rectangle(640, 470, 420, 56, 0x161a23).setStrokeStyle(2, 0xf0c75e).setInteractive({ useHandCursor: true });
-      this.add.text(640, 462, `ПРОДОЛЖИТЬ ЗАБЕГ  (Enter)`, { ...mono, fontSize: '20px' }).setOrigin(0.5);
-      this.add.text(640, 486, `Тир ${saved.tier} · Акт ${act} · Комната ${rm} · Ранг ${saved.rank}`, { ...mono, fontSize: '12px', color: '#f0c75e' }).setOrigin(0.5);
-      cont.on('pointerover', () => cont.setFillStyle(0x1f2430)); cont.on('pointerout', () => cont.setFillStyle(0x161a23));
-      cont.on('pointerdown', () => this.resumeRun());
-      const fresh = this.add.rectangle(640, 528, 420, 36, 0x161a23).setStrokeStyle(1, 0x3a4256).setInteractive({ useHandCursor: true });
-      this.add.text(640, 528, 'Новый забег (N) — сохранённый засчитается как смерть', { ...mono, fontSize: '12px', color: '#9aa4b8' }).setOrigin(0.5);
-      fresh.on('pointerdown', () => this.dive());
+      button(this, cx, 345, 480, 62, 'ПРОДОЛЖИТЬ ЗАБЕГ   (Enter)', { accent: UI.goldHex, hint: `Тир ${saved.tier} · Акт ${act} · Комната ${rm} · Ранг ${saved.rank}`, size: 20, onClick: () => this.resumeRun() });
+      button(this, cx, 405, 480, 40, 'Новый забег   (N)', { accent: UI.stoneHi, hint: 'сохранённый засчитается как смерть', size: 13, onClick: () => this.dive() });
       this.hasSaved = true;
     } else {
       this.hasSaved = false;
-      const btn = this.add.rectangle(640, 490, 260, 56, 0x161a23).setStrokeStyle(2, 0x8fd3ff).setInteractive({ useHandCursor: true });
-      this.add.text(640, 490, 'НЫРНУТЬ  (Enter)', { ...mono, fontSize: '20px' }).setOrigin(0.5);
-      btn.on('pointerover', () => btn.setFillStyle(0x1f2430));
-      btn.on('pointerout', () => btn.setFillStyle(0x161a23));
-      btn.on('pointerdown', () => this.dive());
+      button(this, cx, 360, 480, 70, 'НЫРНУТЬ   (Enter)', { accent: UI.crimsonHex, size: 24, onClick: () => this.dive() });
     }
 
-    this.levelText = this.add.text(640, 612, '', { ...mono, fontSize: '15px', color: '#f0c75e', align: 'center' }).setOrigin(0.5);
-    const gearBtn = this.add.rectangle(520, 570, 220, 36, 0x161a23).setStrokeStyle(1, 0xf0c75e).setInteractive({ useHandCursor: true });
-    this.add.text(520, 570, 'Снаряжение  (I)', { ...mono, fontSize: '14px' }).setOrigin(0.5);
-    gearBtn.on('pointerdown', () => this.scene.start('gear'));
-    const shopBtn = this.add.rectangle(760, 570, 220, 36, 0x161a23).setStrokeStyle(1, 0x8fd3ff).setInteractive({ useHandCursor: true });
-    this.add.text(760, 570, 'Лавка Ковчега  (L)', { ...mono, fontSize: '14px' }).setOrigin(0.5);
-    shopBtn.on('pointerdown', () => this.scene.start('hubshop'));
-    const setBtn = this.add.rectangle(1000, 570, 200, 36, 0x161a23).setStrokeStyle(1, 0x6f7890).setInteractive({ useHandCursor: true });
-    this.add.text(1000, 570, 'Настройки  (O)', { ...mono, fontSize: '14px' }).setOrigin(0.5);
-    setBtn.on('pointerdown', () => this.scene.start('settings'));
-    this.statsText = this.add.text(640, 650, '', { ...mono, fontSize: '13px', color: '#9aa4b8', align: 'center' }).setOrigin(0.5);
-    this.add.text(640, 690, 'Забег: 3 акта × 10 комнат, босс в конце каждого акта. Живой выход после третьего босса открывает следующий Тир. · Ctrl+Shift+Del — сброс прогресса', { ...mono, fontSize: '11px', color: '#6f7890' }).setOrigin(0.5);
+    const row = 470;
+    button(this, cx - 180, row, 170, 42, 'Снаряжение', { accent: UI.goldHex, hint: 'I', size: 14, onClick: () => this.scene.start('gear') });
+    button(this, cx, row, 170, 42, 'Лавка Ковчега', { accent: UI.iceHex, hint: 'L', size: 14, onClick: () => this.scene.start('hubshop') });
+    button(this, cx + 180, row, 170, 42, 'Настройки', { accent: UI.stoneHi, hint: 'O', size: 14, onClick: () => this.scene.start('settings') });
+
+    this.levelText = this.add.text(cx, 530, '', mono(14, UI.gold, { align: 'center', lineSpacing: 4 })).setOrigin(0.5, 0);
+    this.statsText = this.add.text(cx, 578, '', mono(12, UI.dim, { align: 'center', wordWrap: { width: 640 } })).setOrigin(0.5, 0);
+    this.add.text(640, 660, '3 акта × 10 комнат, босс в конце каждого акта. Живой выход после третьего босса открывает следующий Тир.', mono(11, UI.dim)).setOrigin(0.5);
+    this.add.text(640, 684, '← → — Тир · S — другой сид · Ctrl+Shift+Del — сброс прогресса', mono(11, UI.dim)).setOrigin(0.5);
 
     const kb = this.input.keyboard!;
     kb.on('keydown-LEFT', () => { this.tier = Math.max(1, this.tier - 1); this.render(); });
@@ -87,12 +94,13 @@ export class TitleScene extends Phaser.Scene {
 
   private render() {
     const p = this.progress;
-    this.tierText.setText(`Тир ${this.tier}  ${this.tier < p.unlockedTier ? '→' : p.unlockedTier > 1 ? '' : '(пройди его без смерти, чтобы открыть Тир 2)'}`.trim());
+    this.tierText.setText(`Тир ${this.tier}${this.tier < p.unlockedTier ? '  →' : ''}`);
+    this.tierHint.setText(p.unlockedTier > 1 ? `открыто Тиров: ${p.unlockedTier} · ← → — выбрать` : 'пройди его без смерти, чтобы открыть Тир 2');
     this.seedText.setText(`сид ${this.seed}`);
     const lv = levelFromXp(p.xp);
     const sk = p.skills.length ? p.skills.map((id) => SKILLS[id]?.name ?? id).join(' · ') : 'пока только клинок и уклонение — первый скилл на 10 уровне';
     this.levelText.setText(`Уровень ${lv.level} · ${Math.floor(lv.into)}/${Math.ceil(lv.need)} опыта\nСкиллы: ${sk}`);
-    this.statsText.setText(`Открыто Тиров: ${p.unlockedTier} · Забегов: ${p.runs} · Побед: ${p.wins} · Лучшая комната: ${p.bestRoom} · Предметов: ${p.inventory.length} · Эхо: ${p.echo}`);
+    this.statsText.setText(`Забегов ${p.runs} · Побед ${p.wins} · Лучшая комната ${p.bestRoom} · Предметов ${p.inventory.length} · Эхо ${p.echo}`);
   }
 
   private resumeRun() {

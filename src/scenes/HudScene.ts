@@ -5,6 +5,7 @@ import { facetDef } from '../run/mods';
 import { ITEMS } from '../run/loot';
 import type { FacetRarity } from '../data/types';
 import { loadSettings } from '../meta/Settings';
+import { UI } from '../ui/theme';
 
 const RARITY_HEX: Record<FacetRarity, number> = { common: 0x9aa4b8, rare: 0x6fb7ff, epic: 0xd38bff };
 import type { ArenaSnapshot } from './ArenaScene';
@@ -27,6 +28,7 @@ export class HudScene extends Phaser.Scene {
   private debug!: Phaser.GameObjects.Text;
   private banner!: Phaser.GameObjects.Text;
   private bossText!: Phaser.GameObjects.Text;
+  private bossPortrait!: Phaser.GameObjects.Image;
   private toast!: Phaser.GameObjects.Text;
   private tooltip!: Phaser.GameObjects.Text;
   private runeIcons!: Phaser.GameObjects.Container;
@@ -38,6 +40,10 @@ export class HudScene extends Phaser.Scene {
 
   create() {
     const style = { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: '14px', color: '#e8e4d8' };
+    // каменная плашка под верхней панелью и подсказкой
+    const plate = this.add.graphics().setDepth(-1);
+    plate.fillStyle(UI.bg, 0.55).fillRect(0, 0, 1280, 132).fillRect(0, 676, 1280, 44);
+    plate.lineStyle(1, UI.stone, 0.9).lineBetween(0, 132, 1280, 132).lineBetween(0, 676, 1280, 676);
     this.bars = this.add.graphics();
     this.info = this.add.text(24, 48, '', style);
     this.skillsText = this.add.text(24, 72, '', { ...style, color: '#c9d1e0' });
@@ -48,6 +54,7 @@ export class HudScene extends Phaser.Scene {
     this.debug = this.add.text(1256, 24, '', { ...style, color: '#9aa4b8', align: 'right' }).setOrigin(1, 0);
     this.toast = this.add.text(640, 160, '', { ...style, fontSize: '16px', color: '#f0c75e', backgroundColor: '#0b0d12cc', padding: { x: 10, y: 6 } }).setOrigin(0.5);
     this.bossText = this.add.text(640, 652, '', { ...style, fontSize: '13px', color: '#e0a62f' }).setOrigin(0.5, 1);
+    this.bossPortrait = this.add.image(312, 652, 'sprites', 'portrait_boss_hammer').setScale(2).setVisible(false);
     this.banner = this.add.text(640, 330, '', { ...style, fontSize: '28px', align: 'center' }).setOrigin(0.5);
     this.add.text(640, 696, 'WASD — движение · ЛКМ — удар · ПКМ — рывок · Q/E/R/F — скиллы · Space — уклонение · I — снаряжение · Esc — меню', { ...style, color: '#6f7890', fontSize: '12px' }).setOrigin(0.5, 1);
     // вспышка экрана при уроне герою (настройка)
@@ -70,8 +77,8 @@ export class HudScene extends Phaser.Scene {
       s.facets.forEach((id, i) => {
         const def = facetDef(id);
         const x = (i % 10) * 30, y = Math.floor(i / 10) * 30;
-        const box = this.add.rectangle(x + 12, y + 12, 24, 24, 0x161a23).setStrokeStyle(2, RARITY_HEX[def.rarity]).setInteractive({ useHandCursor: true });
-        const letter = this.add.text(x + 12, y + 12, def.name[0], { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: '13px', color: '#e8e4d8' }).setOrigin(0.5);
+        const box = this.add.rectangle(x + 12, y + 12, 24, 24, UI.panel).setStrokeStyle(2, RARITY_HEX[def.rarity]).setInteractive({ useHandCursor: true });
+        const letter = this.add.image(x + 12, y + 12, 'sprites', `rune_${id}`).setScale(1.25);
         box.on('pointerover', () => this.showTip(24 + x, 112 + y + 30, `${def.name} · ${def.rarity === 'common' ? 'обычная' : def.rarity === 'rare' ? 'редкая' : 'эпическая'}\n${def.effect}`));
         box.on('pointerout', () => this.tooltip.setVisible(false));
         this.runeIcons.add([box, letter]);
@@ -84,8 +91,8 @@ export class HudScene extends Phaser.Scene {
       s.backpack.forEach((id, i) => {
         const item = ITEMS[id];
         const x = -(i % 10) * 30, y = -Math.floor(i / 10) * 30;
-        const box = this.add.rectangle(x - 12, y - 12, 24, 24, 0x161a23).setStrokeStyle(2, RARITY_HEX[item.rarity]).setInteractive({ useHandCursor: true });
-        const letter = this.add.text(x - 12, y - 12, item.name[0], { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: '13px', color: '#f0c75e' }).setOrigin(0.5);
+        const box = this.add.rectangle(x - 12, y - 12, 24, 24, UI.panel).setStrokeStyle(2, RARITY_HEX[item.rarity]).setInteractive({ useHandCursor: true });
+        const letter = this.add.image(x - 12, y - 12, 'sprites', `item_${id}`).setScale(1.25);
         box.on('pointerover', () => this.showTip(1256 + x - 340, 690 + y - 70, `${item.name}\n${item.text}\nв рюкзаке — надеть можно в меню паузы (Esc → Снаряжение)`));
         box.on('pointerout', () => this.tooltip.setVisible(false));
         this.bagIcons.add([box, letter]);
@@ -101,8 +108,10 @@ export class HudScene extends Phaser.Scene {
     const g = this.bars;
     g.clear();
     // HP
-    g.fillStyle(0x000000, 0.55).fillRect(24, 24, 260, 16);
-    g.fillStyle(0xe0553a, 1).fillRect(24, 24, 260 * Math.max(0, s.hp / s.maxHp), 16);
+    g.fillStyle(0x000000, 0.7).fillRect(22, 22, 264, 20);
+    g.fillStyle(UI.crimsonHex, 1).fillRect(24, 24, 260 * Math.max(0, s.hp / s.maxHp), 16);
+    g.fillStyle(0xffffff, 0.12).fillRect(24, 24, 260 * Math.max(0, s.hp / s.maxHp), 5);
+    g.lineStyle(1, UI.stoneHi, 1).strokeRect(22, 22, 264, 20);
     // заряды уклонения
     for (let i = 0; i < s.dodgeMax; i++) {
       const full = i < s.dodgeCharges;
@@ -110,14 +119,17 @@ export class HudScene extends Phaser.Scene {
       g.fillStyle(0x8fd3ff, 1).fillRect(24 + i * 44, 42, 40 * (full ? 1 : i === s.dodgeCharges ? s.dodge01 : 0), 4);
     }
     // Ранг
-    g.fillStyle(0x000000, 0.55).fillRect(510, 24, 260, 10);
-    g.fillStyle(0xf0c75e, 1).fillRect(510, 24, 260 * Math.min(1, s.shards / s.nextRankAt), 10);
+    g.fillStyle(0x000000, 0.7).fillRect(508, 22, 264, 14);
+    g.fillStyle(UI.goldHex, 1).fillRect(510, 24, 260 * Math.min(1, s.shards / s.nextRankAt), 10);
+    g.lineStyle(1, UI.stoneHi, 1).strokeRect(508, 22, 264, 14);
 
     if (s.boss) {
       g.fillStyle(0x000000, 0.6).fillRect(340, 660, 600, 14);
       g.fillStyle(0xe0a62f, 1).fillRect(340, 660, 600 * Math.max(0, s.boss.hp01), 14);
     }
     this.bossText.setText(s.boss ? `${s.boss.name} · фаза ${s.boss.phase}` : '');
+    this.bossPortrait.setVisible(!!s.boss);
+    if (s.boss) { g.fillStyle(UI.panel, 1).fillRect(292, 632, 40, 40); g.lineStyle(2, s.boss.phase === 2 ? UI.crimsonHex : UI.goldHex, 1).strokeRect(292, 632, 40, 40); }
     this.info.setText(`Тир ${s.tier} · Акт ${s.act}/${s.acts} · Комната ${s.roomInAct}/${s.roomsPerAct}${s.roomTag ? ' [' + s.roomTag + ']' : ''} · Враги ${s.alive} · Убито ${s.kills}      Ранг ${s.rank}  ${Math.floor(s.shards)}/${Math.ceil(s.nextRankAt)} осколков · ${s.gold} золота · Эхо +${s.echo} · опыт +${s.xp}`);
     const sk = s.skills.map((v) => `${v.key} ${v.name} ${v.charges !== undefined ? '●'.repeat(v.charges) + '○'.repeat((v.maxCharges ?? 0) - v.charges) : v.ready01 >= 1 ? '✓' : Math.round(v.ready01 * 100) + '%'}`);
     if (s.rhythm > 0 || s.hasRhythm) sk.push(`Ритм ${'|'.repeat(s.rhythm)}${'.'.repeat(5 - s.rhythm)}`);

@@ -41,6 +41,15 @@ describe('формы комнат (GDD §10: 12 форм)', () => {
     expect(g.blocksWalk(pit.cx * TILE + 5, pit.cy * TILE + 5)).toBe(true);
     expect(g.blocksShot(pit.cx * TILE + 5, pit.cy * TILE + 5)).toBe(false);
   });
+  it('прямая видимость: колонна режет линию, яма — нет', () => {
+    const g = new RoomGrid(LAYOUTS_ALL.findIndex((l) => l.name === 'Четыре колонны'));
+    const p = g.obstacles()[0]; const px = p.cx * TILE + TILE / 2, py = p.cy * TILE + TILE / 2;
+    expect(g.hasLos(px - 80, py, px + 80, py)).toBe(false);
+    expect(g.hasLos(px - 80, py + 120, px + 80, py + 120)).toBe(true);
+    const pit = new RoomGrid(LAYOUTS_ALL.findIndex((l) => l.name === 'Провал'));
+    const q = pit.obstacles()[0]; const qx = q.cx * TILE + TILE / 2, qy = q.cy * TILE + TILE / 2;
+    expect(pit.hasLos(qx - 100, qy, qx + 100, qy)).toBe(true);
+  });
   it('руление: курс в стену отклоняется, свободный курс не трогается, сторона обхода стабильна', () => {
     const g = new RoomGrid(LAYOUTS_ALL.findIndex((l) => l.name === 'Коридор'));
     const wallY = 6 * TILE + TILE / 2; // верхняя стена коридора y = 6

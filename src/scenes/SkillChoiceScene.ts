@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { backdrop, heading, UI } from '../ui/theme';
 import { Rng } from '../core/rng';
 import { chooseSkill, loadProgress } from '../meta/Progress';
 import { offerSkills, SKILLS } from '../meta/skillChoice';
@@ -21,8 +22,8 @@ export class SkillChoiceScene extends Phaser.Scene {
     const offer = offerSkills(rng, progress.skills, Math.max(level, milestone));
     const mono = { fontFamily: 'ui-monospace, Menlo, monospace', color: '#e8e4d8' };
 
-    this.add.rectangle(640, 360, 1280, 720, 0x0b0d12, 1);
-    this.add.text(640, 110, `Уровень ${milestone} — новый Основной скилл`, { ...mono, fontSize: '28px' }).setOrigin(0.5);
+    backdrop(this);
+    heading(this, 60, 'МИЛСТОУН', `Уровень ${milestone} — новый Основной скилл`, UI.ice);
     this.add.text(640, 148, 'Постоянный выбор. Сброс — в Лавке Ковчега за Эхо. Клик или 1 / 2 / 3', { ...mono, fontSize: '13px', color: '#6f7890' }).setOrigin(0.5);
 
     const cardW = 340, cardH = 360, gap = 40;

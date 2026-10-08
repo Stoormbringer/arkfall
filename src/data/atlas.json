@@ -1000,10 +1000,1050 @@
     "h": 32
    }
   },
-  "floor0": {
+  "rune_ash_trail": {
    "frame": {
     "x": 64,
     "y": 192,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_second_wind": {
+   "frame": {
+    "x": 96,
+    "y": 192,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_ricochet": {
+   "frame": {
+    "x": 128,
+    "y": 192,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_greedy_shards": {
+   "frame": {
+    "x": 160,
+    "y": 192,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_long_pull": {
+   "frame": {
+    "x": 192,
+    "y": 192,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_compression": {
+   "frame": {
+    "x": 224,
+    "y": 192,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_wide_window": {
+   "frame": {
+    "x": 0,
+    "y": 224,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_echo_answer": {
+   "frame": {
+    "x": 32,
+    "y": 224,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_loyalty": {
+   "frame": {
+    "x": 64,
+    "y": 224,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_twin": {
+   "frame": {
+    "x": 96,
+    "y": 224,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_overload": {
+   "frame": {
+    "x": 128,
+    "y": 224,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_grounding": {
+   "frame": {
+    "x": 160,
+    "y": 224,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_metronome": {
+   "frame": {
+    "x": 192,
+    "y": 224,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_crescendo": {
+   "frame": {
+    "x": 224,
+    "y": 224,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_spiked_barrier": {
+   "frame": {
+    "x": 0,
+    "y": 256,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_instant_barrier": {
+   "frame": {
+    "x": 32,
+    "y": 256,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_poison_soil": {
+   "frame": {
+    "x": 64,
+    "y": 256,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_roots": {
+   "frame": {
+    "x": 96,
+    "y": 256,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_heaviness": {
+   "frame": {
+    "x": 128,
+    "y": 256,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_rift": {
+   "frame": {
+    "x": 160,
+    "y": 256,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_reserve": {
+   "frame": {
+    "x": 192,
+    "y": 256,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_shard_catcher": {
+   "frame": {
+    "x": 224,
+    "y": 256,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_blood_on_blade": {
+   "frame": {
+    "x": 0,
+    "y": 288,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_magnet": {
+   "frame": {
+    "x": 32,
+    "y": 288,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_echo_of_pain": {
+   "frame": {
+    "x": 64,
+    "y": 288,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_silence": {
+   "frame": {
+    "x": 96,
+    "y": 288,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_glass_fury": {
+   "frame": {
+    "x": 128,
+    "y": 288,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_brittle_enemies": {
+   "frame": {
+    "x": 160,
+    "y": 288,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_shield_breaker": {
+   "frame": {
+    "x": 192,
+    "y": 288,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_last_breath": {
+   "frame": {
+    "x": 224,
+    "y": 288,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_thirst": {
+   "frame": {
+    "x": 0,
+    "y": 320,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "rune_breather": {
+   "frame": {
+    "x": 32,
+    "y": 320,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "item_jagged_blade": {
+   "frame": {
+    "x": 64,
+    "y": 320,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "item_long_blade": {
+   "frame": {
+    "x": 96,
+    "y": 320,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "item_reaper_blade": {
+   "frame": {
+    "x": 128,
+    "y": 320,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "item_tide_hammer": {
+   "frame": {
+    "x": 160,
+    "y": 320,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "item_abyss_blade": {
+   "frame": {
+    "x": 192,
+    "y": 320,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "item_leather_armor": {
+   "frame": {
+    "x": 224,
+    "y": 320,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "item_plate_armor": {
+   "frame": {
+    "x": 0,
+    "y": 352,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "item_wanderer_armor": {
+   "frame": {
+    "x": 32,
+    "y": 352,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "item_mirror_cuirass": {
+   "frame": {
+    "x": 64,
+    "y": 352,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "item_ark_carapace": {
+   "frame": {
+    "x": 96,
+    "y": 352,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "item_wind_boots": {
+   "frame": {
+    "x": 128,
+    "y": 352,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "item_deft_gloves": {
+   "frame": {
+    "x": 160,
+    "y": 352,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "item_shard_ring": {
+   "frame": {
+    "x": 192,
+    "y": 352,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "item_pupil_amulet": {
+   "frame": {
+    "x": 224,
+    "y": 352,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "item_double_step": {
+   "frame": {
+    "x": 0,
+    "y": 384,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "item_ash_ember": {
+   "frame": {
+    "x": 32,
+    "y": 384,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "item_mirror_shard": {
+   "frame": {
+    "x": 64,
+    "y": 384,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "item_abyss_heart": {
+   "frame": {
+    "x": 96,
+    "y": 384,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "item_warden_eye": {
+   "frame": {
+    "x": 128,
+    "y": 384,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "item_first_diver_seal": {
+   "frame": {
+    "x": 160,
+    "y": 384,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "floor0": {
+   "frame": {
+    "x": 192,
+    "y": 384,
     "w": 32,
     "h": 32
    },
@@ -1022,8 +2062,8 @@
   },
   "floor1": {
    "frame": {
-    "x": 96,
-    "y": 192,
+    "x": 224,
+    "y": 384,
     "w": 32,
     "h": 32
    },
@@ -1042,8 +2082,8 @@
   },
   "floor2": {
    "frame": {
-    "x": 128,
-    "y": 192,
+    "x": 0,
+    "y": 416,
     "w": 32,
     "h": 32
    },
@@ -1062,8 +2102,8 @@
   },
   "wall": {
    "frame": {
-    "x": 160,
-    "y": 192,
+    "x": 32,
+    "y": 416,
     "w": 32,
     "h": 32
    },
@@ -1082,8 +2122,8 @@
   },
   "wall_top": {
    "frame": {
-    "x": 192,
-    "y": 192,
+    "x": 64,
+    "y": 416,
     "w": 32,
     "h": 32
    },
@@ -1102,8 +2142,8 @@
   },
   "bullet_enemy": {
    "frame": {
-    "x": 224,
-    "y": 192,
+    "x": 96,
+    "y": 416,
     "w": 32,
     "h": 32
    },
@@ -1122,8 +2162,8 @@
   },
   "bullet_player": {
    "frame": {
-    "x": 0,
-    "y": 224,
+    "x": 128,
+    "y": 416,
     "w": 32,
     "h": 32
    },
@@ -1142,8 +2182,8 @@
   },
   "pillar": {
    "frame": {
-    "x": 32,
-    "y": 224,
+    "x": 160,
+    "y": 416,
     "w": 32,
     "h": 32
    },
@@ -1162,8 +2202,8 @@
   },
   "pit": {
    "frame": {
-    "x": 64,
-    "y": 224,
+    "x": 192,
+    "y": 416,
     "w": 32,
     "h": 32
    },
@@ -1182,8 +2222,8 @@
   },
   "torch0": {
    "frame": {
-    "x": 96,
-    "y": 224,
+    "x": 224,
+    "y": 416,
     "w": 32,
     "h": 32
    },
@@ -1202,8 +2242,28 @@
   },
   "torch1": {
    "frame": {
-    "x": 128,
-    "y": 224,
+    "x": 0,
+    "y": 448,
+    "w": 32,
+    "h": 32
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 32,
+    "h": 32
+   },
+   "sourceSize": {
+    "w": 32,
+    "h": 32
+   }
+  },
+  "portrait_boss_hammer": {
+   "frame": {
+    "x": 32,
+    "y": 448,
     "w": 32,
     "h": 32
    },
@@ -1222,8 +2282,8 @@
   },
   "p_blood": {
    "frame": {
-    "x": 160,
-    "y": 224,
+    "x": 64,
+    "y": 448,
     "w": 32,
     "h": 32
    },
@@ -1242,8 +2302,8 @@
   },
   "p_ichor": {
    "frame": {
-    "x": 192,
-    "y": 224,
+    "x": 96,
+    "y": 448,
     "w": 32,
     "h": 32
    },
@@ -1262,8 +2322,8 @@
   },
   "p_bone": {
    "frame": {
-    "x": 224,
-    "y": 224,
+    "x": 128,
+    "y": 448,
     "w": 32,
     "h": 32
    },
@@ -1282,8 +2342,8 @@
   },
   "p_spark": {
    "frame": {
-    "x": 0,
-    "y": 256,
+    "x": 160,
+    "y": 448,
     "w": 32,
     "h": 32
    },
@@ -1302,8 +2362,8 @@
   },
   "p_fire": {
    "frame": {
-    "x": 32,
-    "y": 256,
+    "x": 192,
+    "y": 448,
     "w": 32,
     "h": 32
    },
@@ -1322,8 +2382,8 @@
   },
   "p_magic": {
    "frame": {
-    "x": 64,
-    "y": 256,
+    "x": 224,
+    "y": 448,
     "w": 32,
     "h": 32
    },
@@ -1342,8 +2402,8 @@
   },
   "p_steel": {
    "frame": {
-    "x": 96,
-    "y": 256,
+    "x": 0,
+    "y": 480,
     "w": 32,
     "h": 32
    },
@@ -1362,8 +2422,8 @@
   },
   "p_crimson": {
    "frame": {
-    "x": 128,
-    "y": 256,
+    "x": 32,
+    "y": 480,
     "w": 32,
     "h": 32
    },
@@ -1385,7 +2445,7 @@
   "image": "atlas.png",
   "size": {
    "w": 256,
-   "h": 288
+   "h": 512
   },
   "scale": "1",
   "generator": "tools/sprites/gen.py"

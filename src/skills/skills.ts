@@ -12,6 +12,8 @@ export interface Battlefield {
   shootPlayer: (x: number, y: number, angle: number, speed: number, damage: number, onHit?: (e: Enemy, x: number, y: number) => void, bounces?: number) => void;
   /** всплывающий текст над точкой */
   float?: (x: number, y: number, text: string, color: string) => void;
+  /** прямая видимость (колонны формы комнаты) */
+  hasLos?: (x0: number, y0: number, x1: number, y1: number) => boolean;
 }
 
 /** Дополнительные эффекты зоны (Руны Шипастой земли) */
@@ -145,6 +147,7 @@ export class Spark extends CooldownSkill {
       let best: Enemy | null = null, bd = range;
       for (const e of alive) {
         if (chain.includes(e)) continue;
+        if (this.field.hasLos && !this.field.hasLos(from.x, from.y, e.x, e.y)) continue;
         const d = Phaser.Math.Distance.BetweenPoints(from, e);
         if (d < bd) { bd = d; best = e; }
       }
@@ -280,7 +283,7 @@ export class Barrier extends CooldownSkill {
     const flash = this.scene.add.circle(c.x, c.y, B.base.burstRadius, 0x8fd3ff, 0.4).setDepth(6);
     this.scene.tweens.add({ targets: flash, alpha: 0, duration: 220, onComplete: () => flash.destroy() });
     for (const e of [...this.field.enemies()])
-      if (e.active && Phaser.Math.Distance.BetweenPoints(c, e) <= B.base.burstRadius + e.def.radius) this.field.damage(e, (B.base.burstDamage + this.absorbed * this.mods.barrier.absorbToBurst) * this.mods.damageMult, c, 160, B.name);
+      if (e.active && Phaser.Math.Distance.BetweenPoints(c, e) <= B.base.burstRadius + e.def.radius && (!this.field.hasLos || this.field.hasLos(c.x, c.y, e.x, e.y))) this.field.damage(e, (B.base.burstDamage + this.absorbed * this.mods.barrier.absorbToBurst) * this.mods.damageMult, c, 160, B.name);
     this.gfx.clear();
   }
   update() {
@@ -358,6 +361,7 @@ export class EchoStrike extends CooldownSkill {
     this.scene.tweens.add({ targets: flash, alpha: 0, duration: 200, onComplete: () => flash.destroy() });
     for (const e of [...this.field.enemies()]) {
       if (!e.active || Phaser.Math.Distance.BetweenPoints(c, e) > ES_RADIUS + e.def.radius) continue;
+      if (this.field.hasLos && !this.field.hasLos(c.x, c.y, e.x, e.y)) continue;
       const killed = this.field.damage(e, dmg, c, 180, ES.name);
       if (!killed) e.stun(ES.base.stunSec * 1000);
     }

@@ -318,14 +318,127 @@ def bullet(kind):
     s.outline()
     return s
 
+# ---------- иконки 16×16: символ + цвет; Руны и предметы ----------
+def icon(symbol, c, c2=None):
+    """символ на прозрачном фоне, контур авто; рисуется в левом верхнем квадрате 16×16 кадра 32"""
+    s = Sprite()
+    c2 = c2 or c
+    P = s.put
+    if symbol == 'flame':
+        for y, w in ((3, 1), (4, 1), (5, 2), (6, 3), (7, 3), (8, 4), (9, 5), (10, 5), (11, 5), (12, 4), (13, 3)):
+            for x in range(8 - w // 2, 8 - w // 2 + w): P(x, y, c)
+        for y in (9, 10, 11, 12): P(8, y, c2)
+    elif symbol == 'bolt':
+        for (x, y) in ((9, 2), (8, 3), (8, 4), (7, 5), (7, 6), (6, 7), (9, 7), (8, 8), (8, 9), (7, 10), (7, 11), (6, 12), (6, 13)): P(x, y, c)
+        for (x, y) in ((8, 5), (9, 8), (7, 9)): P(x, y, c2)
+    elif symbol == 'shield':
+        for y in range(3, 13):
+            w = 10 if y < 9 else 10 - (y - 8) * 2
+            for x in range(8 - w // 2, 8 - w // 2 + w): P(x, y, c)
+        for y in range(4, 11): P(8, y, c2)
+    elif symbol == 'drop':
+        for y, w in ((3, 1), (4, 1), (5, 3), (6, 3), (7, 5), (8, 5), (9, 7), (10, 7), (11, 7), (12, 5), (13, 3)):
+            for x in range(8 - w // 2, 8 - w // 2 + w): P(x, y, c)
+        P(6, 9, c2); P(6, 10, c2)
+    elif symbol == 'skull':
+        s.ellipse(8, 7, 5, 4, c); s.rect(6, 10, 10, 13, c); P(6, 7, 'k'); P(10, 7, 'k'); P(7, 12, 'k'); P(9, 12, 'k')
+    elif symbol == 'star':
+        for (x, y) in ((8, 2), (8, 3), (7, 4), (9, 4), (3, 5), (4, 5), (5, 5), (6, 5), (7, 5), (8, 5), (9, 5), (10, 5), (11, 5), (12, 5), (13, 5), (6, 6), (10, 6), (6, 7), (10, 7), (5, 8), (11, 8), (5, 9), (8, 9), (11, 9), (4, 10), (7, 10), (9, 10), (12, 10), (4, 11), (12, 11)): P(x, y, c)
+        P(8, 6, c2); P(8, 7, c2); P(8, 8, c2)
+    elif symbol == 'ring':
+        s.ellipse(8, 8, 6, 6, c); s.ellipse(8, 8, 3, 3, 'k'); P(8, 2, c2); P(8, 3, c2)
+        for (x, y) in list(s.px.keys()):
+            if s.px[(x, y)] == 'k': del s.px[(x, y)]
+    elif symbol == 'arrow':
+        for i in range(10): P(3 + i, 12 - i, c)
+        for (x, y) in ((12, 3), (11, 3), (10, 3), (12, 4), (12, 5), (12, 6)): P(x, y, c2)
+    elif symbol == 'spiral':
+        for (x, y) in ((8, 8), (9, 8), (9, 7), (8, 6), (7, 6), (6, 7), (6, 9), (7, 10), (9, 10), (10, 10), (11, 9), (11, 7), (10, 5), (8, 4), (6, 4), (4, 6), (4, 9), (5, 11), (7, 12), (10, 12), (12, 11)): P(x, y, c)
+    elif symbol == 'cross':
+        s.rect(7, 2, 9, 13, c); s.rect(3, 6, 13, 8, c); s.rect(8, 3, 8, 12, c2)
+    elif symbol == 'gem':
+        for y, w in ((4, 6), (5, 8), (6, 10), (7, 10), (8, 8), (9, 6), (10, 4), (11, 2)):
+            for x in range(8 - w // 2, 8 - w // 2 + w): P(x, y, c)
+        s.rect(6, 5, 9, 5, c2)
+    elif symbol == 'wave':
+        for x in range(2, 14): P(x, 8 + round(2.2 * math.sin(x * 0.9)), c); P(x, 11 + round(2.2 * math.sin(x * 0.9)), c2)
+    elif symbol == 'boot':
+        s.rect(5, 2, 8, 9, c); s.rect(5, 9, 12, 12, c); s.rect(5, 12, 12, 12, c2)
+    elif symbol == 'eye':
+        for y, w in ((5, 4), (6, 8), (7, 12), (8, 12), (9, 8), (10, 4)):
+            for x in range(8 - w // 2, 8 - w // 2 + w): P(x, y, c)
+        s.ellipse(8, 7.5, 2, 2, c2); P(8, 7, 'k')
+    elif symbol == 'sword':
+        for i in range(9): P(4 + i, 12 - i, c)
+        P(5, 11, c2); P(6, 10, c2)
+        s.rect(3, 9, 7, 9, c2); s.rect(5, 11, 5, 13, c2); s.rect(3, 13, 5, 13, c2)
+    elif symbol == 'heart':
+        for y, w in ((4, 0), (5, 0), (6, 12), (7, 12), (8, 10), (9, 8), (10, 6), (11, 4), (12, 2)):
+            for x in range(8 - w // 2, 8 - w // 2 + w): P(x, y, c)
+        s.ellipse(5.5, 5, 3, 2, c); s.ellipse(10.5, 5, 3, 2, c); P(5, 5, c2); P(6, 6, c2)
+    elif symbol == 'coin':
+        s.ellipse(8, 8, 6, 6, c); s.ellipse(8, 8, 4, 4, c2); s.rect(8, 5, 8, 10, c)
+    elif symbol == 'moon':
+        s.ellipse(8, 8, 6, 6, c)
+        for (x, y) in list(s.px.keys()):
+            if (x - 10.5) ** 2 + (y - 7) ** 2 <= 25: del s.px[(x, y)]
+    elif symbol == 'spike':
+        for i in range(4): s.rect(2 + i * 4, 13 - i * 2 - 4, 2 + i * 4, 13, c); P(2 + i * 4, 13 - i * 2 - 5, c2)
+    elif symbol == 'hourglass':
+        for y, w in ((3, 10), (4, 8), (5, 6), (6, 4), (7, 2), (8, 2), (9, 4), (10, 6), (11, 8), (12, 10)):
+            for x in range(8 - w // 2, 8 - w // 2 + w): P(x, y, c)
+        s.rect(7, 11, 8, 12, c2)
+    elif symbol == 'ghost':
+        s.ellipse(8, 7, 5, 5, c); s.rect(3, 7, 12, 12, c); P(5, 13, c); P(8, 13, c); P(11, 13, c); P(6, 6, 'k'); P(10, 6, 'k')
+    elif symbol == 'anchor':
+        s.rect(7, 2, 8, 12, c); s.rect(4, 5, 11, 5, c); s.ellipse(8, 11, 5, 3, c); s.ellipse(8, 11, 3, 1, 'k')
+        for (x, y) in list(s.px.keys()):
+            if s.px[(x, y)] == 'k' and y < 12: del s.px[(x, y)]
+        s.rect(7, 8, 8, 12, c2)
+    elif symbol == 'hammer':
+        s.rect(4, 3, 11, 7, c); s.rect(7, 7, 8, 13, c2); s.rect(4, 3, 11, 3, c2)
+    s.outline()
+    return s
+
+RUNE_ICONS = {
+    'ash_trail': ('flame', 'i', 'e'), 'second_wind': ('arrow', 'b', 'w'), 'ricochet': ('bolt', 'd', 'w'), 'greedy_shards': ('star', 'u', 'd'),
+    'long_pull': ('spiral', 'u', 'u'), 'compression': ('ring', 'u', 'x'), 'wide_window': ('hourglass', 'b', 'w'), 'echo_answer': ('wave', 'b', 'w'),
+    'loyalty': ('ghost', 'z', 'z'), 'twin': ('sword', 'd', 'w'), 'overload': ('bolt', 'b', 'w'), 'grounding': ('anchor', 'b', 'd'),
+    'metronome': ('hourglass', 'q', 'x'), 'crescendo': ('drop', 'q', 'x'), 'spiked_barrier': ('spike', 'b', 'w'), 'instant_barrier': ('shield', 'b', 'w'),
+    'poison_soil': ('drop', 'j', 'n'), 'roots': ('spike', 'n', 'j'), 'heaviness': ('hammer', 'd', 'A'), 'rift': ('bolt', 'T', 'e'),
+    'reserve': ('boot', 'b', 'd'), 'shard_catcher': ('coin', 'T', 'e'), 'blood_on_blade': ('sword', 'q', 'x'), 'magnet': ('ring', 'd', 'w'),
+    'echo_of_pain': ('heart', 'q', 'x'), 'silence': ('moon', 'u', 'u'), 'glass_fury': ('gem', 'x', 'w'), 'brittle_enemies': ('skull', 'z', 'z'),
+    'shield_breaker': ('cross', 'd', 'w'), 'last_breath': ('heart', 'z', 'x'), 'thirst': ('drop', 'q', 'x'), 'breather': ('wave', 'j', 'n'),
+}
+ITEM_ICONS = {
+    'jagged_blade': ('sword', 'd', 'w'), 'long_blade': ('sword', 'd', 'b'), 'reaper_blade': ('sword', 'q', 'x'), 'tide_hammer': ('hammer', 'b', 'w'), 'abyss_blade': ('sword', 'u', 'x'),
+    'leather_armor': ('shield', 'o', 'O'), 'plate_armor': ('shield', 'd', 'w'), 'wanderer_armor': ('shield', 'n', 'j'), 'mirror_cuirass': ('shield', 'b', 'w'), 'ark_carapace': ('shield', 'T', 'e'),
+    'wind_boots': ('boot', 'b', 'w'), 'deft_gloves': ('arrow', 'T', 'e'), 'shard_ring': ('ring', 'T', 'e'), 'pupil_amulet': ('gem', 'b', 'w'), 'double_step': ('boot', 'u', 'x'),
+    'ash_ember': ('flame', 'i', 'e'), 'mirror_shard': ('gem', 'd', 'w'), 'abyss_heart': ('heart', 'q', 'x'), 'warden_eye': ('eye', 'T', 'e'), 'first_diver_seal': ('anchor', 'x', 'w'),
+}
+
+def boss_portrait():
+    """портрет вождя огров крупно: шлем, рога, клыки"""
+    s = Sprite()
+    s.ellipse(16, 18, 12, 11, 'o'); s.rect(4, 16, 28, 29, 'o')
+    s.rect(6, 4, 26, 15, 'a'); s.rect(8, 3, 24, 3, 'a'); s.rect(6, 4, 26, 5, 'g')
+    s.rect(2, 6, 5, 12, 'T'); s.rect(27, 6, 30, 12, 'T'); s.put(2, 5, 'T'); s.put(30, 5, 'T')
+    s.rect(8, 12, 24, 15, 'A'); s.rect(10, 13, 13, 14, 'x'); s.rect(19, 13, 22, 14, 'x')
+    s.rect(9, 22, 23, 24, 'O'); s.rect(8, 20, 9, 24, 'z'); s.rect(23, 20, 24, 24, 'z')
+    s.shade({'o': 'O', 'a': 'A'}); s.outline()
+    return s
+
 CHARS = {'hero': hero, 'rusher': rusher, 'shooter': shooter, 'tank': tank, 'bomber': bomber, 'lancer': lancer, 'summoner': summoner, 'shield': shield, 'orbiter': orbiter, 'boss_hammer': boss}
 POSES = [('idle0', 'idle', 0), ('idle1', 'idle', 1), ('walk0', 'walk', 0), ('walk1', 'walk', 1), ('attack', 'attack', 0)]
 
 SPRITES = {}
 for cid, fn in CHARS.items():
     for name, pose, fr in POSES: SPRITES[f'{cid}_{name}'] = fn(pose, fr)
+for k, (sym, c, c2) in RUNE_ICONS.items(): SPRITES['rune_' + k] = icon(sym, c, c2)
+for k, (sym, c, c2) in ITEM_ICONS.items(): SPRITES['item_' + k] = icon(sym, c, c2)
 SPRITES.update({'floor0': floor_tile(0), 'floor1': floor_tile(1), 'floor2': floor_tile(2), 'wall': wall_tile(False), 'wall_top': wall_tile(True), 'bullet_enemy': bullet('enemy'), 'bullet_player': bullet('player'),
                 'pillar': pillar_tile(), 'pit': pit_tile(), 'torch0': torch(0), 'torch1': torch(1),
+                'portrait_boss_hammer': boss_portrait(),
                 'p_blood': particle('R'), 'p_ichor': particle('n'), 'p_bone': particle('z', 2), 'p_spark': particle('e', 2), 'p_fire': particle('i'), 'p_magic': particle('u'), 'p_steel': particle('d', 2), 'p_crimson': particle('q', 2)})
 _UNUSED = {
     'hero_idle': hero('idle'), 'hero_walk0': hero('walk', 0), 'hero_walk1': hero('walk', 1), 'hero_attack': hero('attack'),
@@ -346,10 +459,22 @@ def preview(path, scale=4):
             im.paste(SPRITES['floor%d' % ((r + c) % 3)].image().resize((S * scale, S * scale), Image.NEAREST), (x, y))
             im.alpha_composite(SPRITES[f'{cid}_{pname}'].image().resize((S * scale, S * scale), Image.NEAREST), (x, y))
             d.text((x, y + S * scale + 2), f'{cid}_{pname}', fill=(201, 194, 176, 255))
-    for c, key in enumerate(['floor0', 'pillar', 'pit', 'wall_top', 'torch0']):
+    for c, key in enumerate(['floor0', 'pillar', 'pit', 'wall_top', 'portrait_boss_hammer']):
         x, y = 12 + c * cw, 12 + len(names) * ch
         im.alpha_composite(SPRITES[key].image().resize((S * scale, S * scale), Image.NEAREST), (x, y))
         d.text((x, y + S * scale + 2), key, fill=(201, 194, 176, 255))
+    im.save(path)
+
+def preview_icons(path, scale=4):
+    keys = [k for k in SPRITES if k.startswith(('rune_', 'item_'))]
+    cols = 13
+    cw, ch = 16 * scale + 8, 16 * scale + 22
+    im = Image.new('RGBA', (cw * cols + 8, ch * ((len(keys) + cols - 1) // cols) + 8), (27, 23, 29, 255))
+    d = ImageDraw.Draw(im)
+    for i, k in enumerate(keys):
+        x, y = 8 + (i % cols) * cw, 8 + (i // cols) * ch
+        im.alpha_composite(SPRITES[k].image().crop((0, 0, 16, 16)).resize((16 * scale, 16 * scale), Image.NEAREST), (x, y))
+        d.text((x, y + 16 * scale + 2), k.split('_', 1)[1][:11], fill=(201, 194, 176, 255))
     im.save(path)
 
 def atlas(png_path, json_path, cols=8):
@@ -361,8 +486,9 @@ def atlas(png_path, json_path, cols=8):
     for i, name in enumerate(names):
         x, y = (i % cols) * S, (i // cols) * S
         im.alpha_composite(SPRITES[name].image(), (x, y))
-        frames[name] = {'frame': {'x': x, 'y': y, 'w': S, 'h': S}, 'rotated': False, 'trimmed': False,
-                        'spriteSourceSize': {'x': 0, 'y': 0, 'w': S, 'h': S}, 'sourceSize': {'w': S, 'h': S}}
+        fw = 16 if name.startswith(('rune_', 'item_')) else S
+        frames[name] = {'frame': {'x': x, 'y': y, 'w': fw, 'h': fw}, 'rotated': False, 'trimmed': False,
+                        'spriteSourceSize': {'x': 0, 'y': 0, 'w': fw, 'h': fw}, 'sourceSize': {'w': fw, 'h': fw}}
     im.save(png_path)
     with open(json_path, 'w', encoding='utf-8') as f:
         json.dump({'frames': frames, 'meta': {'image': 'atlas.png', 'size': {'w': im.width, 'h': im.height}, 'scale': '1', 'generator': 'tools/sprites/gen.py'}}, f, ensure_ascii=False, indent=1)
@@ -370,6 +496,7 @@ def atlas(png_path, json_path, cols=8):
 if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)
     preview(os.path.join(OUT, 'preview.png'))
+    preview_icons(os.path.join(OUT, 'preview-icons.png'))
     atlas(os.path.join(OUT, 'atlas.png'), os.path.join(os.path.dirname(__file__), '..', '..', 'src', 'data', 'atlas.json'))
     import shutil; shutil.copy(os.path.join(os.path.dirname(__file__), '..', '..', 'src', 'data', 'atlas.json'), os.path.join(OUT, 'atlas.json'))
     print('ok', len(SPRITES))

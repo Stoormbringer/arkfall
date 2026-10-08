@@ -16,6 +16,7 @@ export interface EnemyContext {
   blast?: (x: number, y: number, radius: number, dmg: number, source: string) => void;
   /** обход препятствий формы комнаты: желаемый угол → безопасный угол */
   steer?: (x: number, y: number, want: number, r: number, side: 1 | -1) => number;
+  hasLos?: (x0: number, y0: number, x1: number, y1: number) => boolean;
 }
 
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
@@ -258,7 +259,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       this.phaseUntil = now + 120;
       if (this.def.role === 'tank') shake(this.scene.cameras.main, 120, this.isBoss ? 0.008 : 0.004);
       const target = ctx.player.getCenter();
-      if (Phaser.Math.Distance.BetweenPoints(me, target) <= atk.aoeRadius) ctx.hitPlayer(this.dmg, this.def.name);
+      if (Phaser.Math.Distance.BetweenPoints(me, target) <= atk.aoeRadius && (!ctx.hasLos || ctx.hasLos(me.x, me.y, target.x, target.y))) ctx.hitPlayer(this.dmg, this.def.name);
       const flash = this.scene.add.circle(me.x, me.y, atk.aoeRadius, 0xffd27a, 0.45).setDepth(6);
       this.scene.tweens.add({ targets: flash, alpha: 0, duration: 180, onComplete: () => flash.destroy() });
     }

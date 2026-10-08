@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { backdrop, heading } from '../ui/theme';
 import { loadSettings, saveSettings, type Settings } from '../meta/Settings';
 
 export interface SettingsData { fromArena?: boolean }
@@ -14,8 +15,8 @@ export class SettingsScene extends Phaser.Scene {
     this.s = loadSettings();
     this.fromArena = !!data?.fromArena;
     const mono = { fontFamily: 'ui-monospace, Menlo, monospace', color: '#e8e4d8' };
-    this.add.rectangle(640, 360, 1280, 720, 0x0b0d12, this.fromArena ? 0.94 : 1);
-    this.add.text(640, 120, 'НАСТРОЙКИ', { ...mono, fontSize: '13px', color: '#f0c75e', letterSpacing: 6 }).setOrigin(0.5);
+    backdrop(this, this.fromArena ? 0.94 : 1);
+    heading(this, 90, 'НАСТРОЙКИ', 'Как ощущается бой');
     this.add.text(640, 156, 'Клик или клавиша в скобках · Esc — назад', { ...mono, fontSize: '13px', color: '#6f7890' }).setOrigin(0.5);
     this.layer = this.add.container(0, 0);
     const kb = this.input.keyboard!;

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { backdrop, heading } from '../ui/theme';
 import { equipItem, loadProgress, type Progress } from '../meta/Progress';
 import { ITEMS, RARITY_ORDER, SLOT_NAME, SLOTS } from '../run/loot';
 import type { FacetRarity, ItemSlot } from '../data/types';
@@ -21,8 +22,8 @@ export class GearScene extends Phaser.Scene {
     this.progress = loadProgress();
     this.run = data?.run;
     const mono = { fontFamily: 'ui-monospace, Menlo, monospace', color: '#e8e4d8' };
-    this.add.rectangle(640, 360, 1280, 720, 0x0b0d12, this.run ? 0.94 : 1);
-    this.add.text(640, 60, 'СНАРЯЖЕНИЕ', { ...mono, fontSize: '13px', color: '#f0c75e', letterSpacing: 6 }).setOrigin(0.5);
+    backdrop(this, this.run ? 0.94 : 1);
+    heading(this, 30, 'СНАРЯЖЕНИЕ', 'Четыре слота');
     this.add.text(640, 96, this.run ? 'Клик — надеть или снять, действует сразу · Esc — назад в бой' : 'Клик — надеть или снять · Esc — назад в хаб', { ...mono, fontSize: '13px', color: '#6f7890' }).setOrigin(0.5);
     this.layer = this.add.container(0, 0);
     this.input.keyboard!.once('keydown-ESC', () => this.close());
@@ -60,8 +61,9 @@ export class GearScene extends Phaser.Scene {
         const n = counts.get(id)!;
         const tag = fromRun.has(id) && !this.progress.inventory.includes(id) ? ' · найдено в забеге' : '';
         this.layer.add(card);
-        this.layer.add(this.add.text(cx, y - 18, item.name + (n > 1 ? ` ×${n}` : ''), { ...mono, fontSize: '14px', color: RARITY_COLOR[item.rarity] }).setOrigin(0.5));
-        this.layer.add(this.add.text(cx, y + 8, item.text + tag, { ...mono, fontSize: '12px', wordWrap: { width: colW - 24 }, align: 'center' }).setOrigin(0.5));
+        this.layer.add(this.add.image(cx - colW / 2 + 28, y, 'sprites', `item_${id}`).setScale(2.5));
+        this.layer.add(this.add.text(cx + 20, y - 18, item.name + (n > 1 ? ` ×${n}` : ''), { ...mono, fontSize: '14px', color: RARITY_COLOR[item.rarity] }).setOrigin(0.5));
+        this.layer.add(this.add.text(cx + 20, y + 8, item.text + tag, { ...mono, fontSize: '12px', wordWrap: { width: colW - 70 }, align: 'center' }).setOrigin(0.5));
       });
     });
   }

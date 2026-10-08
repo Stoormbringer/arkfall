@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { backdrop, panel, UI } from '../ui/theme';
 import { facetDef } from '../run/mods';
 import type { RunState } from '../run/RunState';
 import type { Progress } from '../meta/Progress';
@@ -13,10 +14,11 @@ export class SummaryScene extends Phaser.Scene {
   constructor() { super('summary'); }
 
   create(d: SummaryData) {
-    this.add.rectangle(640, 360, 1280, 720, 0x05070b, 0.9);
+    backdrop(this, 0.92);
+    panel(this, 640, 400, 760, 520, d.won ? UI.goldHex : UI.crimsonHex);
     const mono = { fontFamily: 'ui-monospace, Menlo, monospace', color: '#e8e4d8' };
     const title = d.won ? 'БЕЗДНА ПРОЙДЕНА' : `УБИТ: ${d.killer}`;
-    this.add.text(640, 120, title, { ...mono, fontSize: '36px', color: d.won ? '#f0c75e' : '#e0553a' }).setOrigin(0.5);
+    this.add.text(640, 120, title, { ...mono, fontSize: '36px', color: d.won ? UI.gold : UI.crimson }).setOrigin(0.5);
     if (d.unlockedNew) this.add.text(640, 168, `Открыт Тир ${d.progress.unlockedTier}`, { ...mono, fontSize: '20px', color: '#8fd3ff' }).setOrigin(0.5);
 
     const common = d.run.ttkSamples.filter((x) => x.role !== 'tank' && x.role !== 'boss_hammer').map((x) => x.sec).sort((a, b) => a - b);

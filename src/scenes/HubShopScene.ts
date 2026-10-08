@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { backdrop, heading, UI } from '../ui/theme';
 import { loadProgress, type Progress } from '../meta/Progress';
 import { buyHubItem, hubItemPrice, hubShopFor, resetSkills, skillResetPrice } from '../meta/echo';
 import { levelFromXp } from '../meta/Level';
@@ -25,9 +26,9 @@ export class HubShopScene extends Phaser.Scene {
     this.progress = loadProgress();
     this.note = ''; this.confirmReset = false;
     const mono = { fontFamily: 'ui-monospace, Menlo, monospace', color: '#e8e4d8' };
-    this.add.rectangle(640, 360, 1280, 720, 0x0b0d12, 1);
-    this.add.text(640, 60, 'ЛАВКА КОВЧЕГА', { ...mono, fontSize: '13px', color: '#8fd3ff', letterSpacing: 6 }).setOrigin(0.5);
-    this.add.text(640, 96, 'Эхо не сгорает. Ассортимент меняется каждые ' + F.echo.hubShop.rotateEveryRuns + ' забега · 1 / 2 / 3 — купить · R — сброс скиллов · Esc — назад', { ...mono, fontSize: '13px', color: '#6f7890' }).setOrigin(0.5);
+    backdrop(this);
+    heading(this, 30, 'ЛАВКА КОВЧЕГА', 'Эхо не сгорает', UI.ice);
+    this.add.text(640, 100, 'Ассортимент меняется каждые ' + F.echo.hubShop.rotateEveryRuns + ' забега · 1 / 2 / 3 — купить · R — сброс скиллов · Esc — назад', { ...mono, fontSize: '13px', color: '#6f7890' }).setOrigin(0.5);
     this.layer = this.add.container(0, 0);
     const kb = this.input.keyboard!;
     kb.on('keydown-ONE', () => this.buy(0)); kb.on('keydown-TWO', () => this.buy(1)); kb.on('keydown-THREE', () => this.buy(2));
@@ -79,7 +80,8 @@ export class HubShopScene extends Phaser.Scene {
       }
       const owned = p.inventory.filter((x) => x === id).length;
       add(this.add.text(cx, cy - 64, `${i + 1} · ${SLOT_NAME[item.slot]}${owned ? ` · есть ×${owned}` : ''}`, { ...mono, fontSize: '12px', color: '#6f7890' }).setOrigin(0.5));
-      add(this.add.text(cx, cy - 36, item.name, { ...mono, fontSize: '17px', color: hex(RARITY_COLOR[item.rarity]) }).setOrigin(0.5));
+      this.layer.add(this.add.image(cx - w / 2 + 30, cy - 36, 'sprites', `item_${id}`).setScale(2.5));
+      add(this.add.text(cx + 12, cy - 36, item.name, { ...mono, fontSize: '17px', color: hex(RARITY_COLOR[item.rarity]) }).setOrigin(0.5));
       add(this.add.text(cx, cy, item.text, { ...mono, fontSize: '13px', wordWrap: { width: w - 30 }, align: 'center' }).setOrigin(0.5));
       add(this.add.text(cx, cy + 56, `${price} Эхо`, { ...mono, fontSize: '15px', color: can ? '#f0c75e' : '#6f7890' }).setOrigin(0.5));
     });

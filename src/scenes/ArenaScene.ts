@@ -129,6 +129,7 @@ export class ArenaScene extends Phaser.Scene {
       enemies: () => this.enemies.getChildren() as Enemy[],
       damage: (e, amount, from, kb, source) => this.damageEnemy(e, amount, from, kb, source),
       addZone: (x, y, r, dur, dps, tick, slow, opts) => this.addZone(x, y, r, dur, dps, tick, slow ?? 1, opts),
+      hasLos: (x0, y0, x1, y1) => this.grid.hasLos(x0, y0, x1, y1),
       float: (x, y, t, c) => this.floatText(x, y, t, c),
       shootPlayer: (x, y, a, sp, d, onHit, bounces) => {
         const b = this.playerBullets.get(x, y) as PlayerBullet | null;
@@ -362,6 +363,7 @@ export class ArenaScene extends Phaser.Scene {
       hitPlayer: (d: number, src: string) => this.hitPlayer(d, src),
       aliveCount: () => this.enemies.countActive(true) + this.pendingSpawns,
       steer: (x: number, y: number, want: number, r: number, side: 1 | -1) => this.grid.steer(x, y, want, r, side),
+      hasLos: (x0: number, y0: number, x1: number, y1: number) => this.grid.hasLos(x0, y0, x1, y1),
       blast: (x: number, y: number, r: number, d: number, src: string) => this.blast(x, y, r, d, src),
       spawnAdd: (x: number, y: number, id: 'rusher' | 'shooter') => {
         this.pendingSpawns++;
@@ -416,7 +418,7 @@ export class ArenaScene extends Phaser.Scene {
   private blast(x: number, y: number, r: number, dmg: number, source: string) {
     const flash = this.add.circle(x, y, r, 0xff8a3c, 0.5).setDepth(6);
     this.tweens.add({ targets: flash, alpha: 0, scale: 1.15, duration: 220, onComplete: () => flash.destroy() });
-    if (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) <= r + 10) this.hitPlayer(dmg, source);
+    if (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) <= r + 10 && this.grid.hasLos(x, y, this.player.x, this.player.y)) this.hitPlayer(dmg, source);
   }
 
   /** Посмертный взрыв Подрывника: фитиль с телеграфом, потом взрыв (§6.7 — всё телеграфируется) */
@@ -438,6 +440,7 @@ export class ArenaScene extends Phaser.Scene {
       if (!e.active) continue;
       const d = Phaser.Math.Distance.BetweenPoints(c, e) - e.def.radius;
       if (d > s.radius) continue;
+      if (!this.grid.hasLos(c.x, c.y, e.x, e.y)) continue; // сквозь колонну не бьём
       const diff = Math.abs(Phaser.Math.Angle.Wrap(Phaser.Math.Angle.BetweenPoints(c, e) - s.angle));
       if (diff > s.arcRad / 2) continue;
       hitAny = true;

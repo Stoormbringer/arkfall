@@ -34,6 +34,13 @@ export class RoomGrid {
     return !this.blocksWalk(x, y) && !this.blocksWalk(x - r, y) && !this.blocksWalk(x + r, y) && !this.blocksWalk(x, y - r) && !this.blocksWalk(x, y + r);
   }
 
+  /** Прямая видимость для ударов и снарядов: ни одна точка отрезка не внутри колонны (шаг 8 px) */
+  hasLos(x0: number, y0: number, x1: number, y1: number): boolean {
+    const d = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.ceil(d / 8));
+    for (let i = 0; i <= n; i++) { const t = i / n; if (this.blocksShot(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t)) return false; }
+    return true;
+  }
+
   /** все клетки с препятствиями — для статических тел и тайлов */
   obstacles(): { cx: number; cy: number; cell: Cell }[] {
     const out: { cx: number; cy: number; cell: Cell }[] = [];

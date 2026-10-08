@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { backdrop, heading, UI } from '../ui/theme';
 import type { Shop } from '../run/shop';
 import { healPrice, itemPrice, rerollPrice, restockPrice, sellPrice } from '../run/shop';
 import { ITEMS, SLOT_NAME } from '../run/loot';
@@ -26,10 +27,10 @@ export class ShopScene extends Phaser.Scene {
   create(data: ShopSceneData) {
     this.shop = data.shop; this.hp = data.hp; this.maxHp = data.maxHp;
     const W = 1280, H = 720;
-    this.add.rectangle(W / 2, H / 2, W, H, 0x05070b, 0.86);
+    backdrop(this, 0.9);
     const mono = { fontFamily: 'ui-monospace, Menlo, monospace', color: '#e8e4d8' };
-    this.add.text(W / 2, 48, 'ТОРГОВЕЦ', { ...mono, fontSize: '13px', color: '#8fd3ff', letterSpacing: 6 }).setOrigin(0.5);
-    this.add.text(W / 2, 82, 'Золото сгорает в конце забега — трать сейчас', { ...mono, fontSize: '20px' }).setOrigin(0.5);
+    heading(this, 30, 'ТОРГОВЕЦ', 'Золото сгорает в конце забега — трать сейчас', UI.ice);
+    void W; void H;
     this.add.text(W / 2, 112, '1 / 2 / 3 — купить · H — лечение · R — реролл Руны · T — обновить лавку · Esc — уйти', { ...mono, fontSize: '13px', color: '#6f7890' }).setOrigin(0.5);
     this.layer = this.add.container(0, 0);
     const kb = this.input.keyboard!;
@@ -90,7 +91,8 @@ export class ShopScene extends Phaser.Scene {
       const item = ITEMS[id], price = itemPrice(id, tier), can = this.gold >= price;
       this.button(cx, cy, w, h, RARITY_COLOR[item.rarity], can, () => this.buy(i));
       add(this.add.text(cx, cy - 64, `${i + 1} · ${SLOT_NAME[item.slot]}`, { ...mono, fontSize: '12px', color: '#6f7890' }).setOrigin(0.5));
-      add(this.add.text(cx, cy - 36, item.name, { ...mono, fontSize: '17px', color: hex(RARITY_COLOR[item.rarity]) }).setOrigin(0.5));
+      this.layer.add(this.add.image(cx - w / 2 + 30, cy - 36, 'sprites', `item_${id}`).setScale(2.5));
+      add(this.add.text(cx + 12, cy - 36, item.name, { ...mono, fontSize: '17px', color: hex(RARITY_COLOR[item.rarity]) }).setOrigin(0.5));
       add(this.add.text(cx, cy, item.text, { ...mono, fontSize: '13px', wordWrap: { width: w - 30 }, align: 'center' }).setOrigin(0.5));
       add(this.add.text(cx, cy + 56, `${price} золота`, { ...mono, fontSize: '15px', color: can ? '#f0c75e' : '#6f7890' }).setOrigin(0.5));
     });

@@ -1,7 +1,9 @@
 import type { Rng } from '../core/rng';
 
-/** Награды за дверями (GDD §2 шаг 3). Пока без золота и предметов — они появятся с экономикой и лутом. */
-export type DoorReward = 'shards' | 'heal' | 'facet' | 'elite' | 'boss';
+import F from '../data/formulas.json';
+
+/** Награды за дверями (GDD §2 шаг 3). */
+export type DoorReward = 'shards' | 'heal' | 'facet' | 'elite' | 'boss' | 'shop';
 
 export interface DoorDef { reward: DoorReward; name: string; hint: string; color: number }
 
@@ -11,13 +13,14 @@ export const DOORS: Record<DoorReward, DoorDef> = {
   facet:  { reward: 'facet',  name: 'Алтарь', hint: 'Руна после зачистки', color: 0xb58cff },
   elite:  { reward: 'elite',  name: 'Логово элиты', hint: 'Врагов ×1,5 и они крепче. Награда: Осколки и Руна', color: 0xe0553a },
   boss:   { reward: 'boss',   name: 'Логово босса', hint: 'Босс акта', color: 0xe0a62f },
+  shop:   { reward: 'shop',   name: 'Торговец', hint: 'После зачистки — лавка: предметы, лечение, реролл Руны. За золото', color: 0x8fd3ff },
 };
 
-const WEIGHTS: Record<Exclude<DoorReward, 'boss'>, number> = { shards: 35, heal: 25, facet: 25, elite: 15 };
+const WEIGHTS: Record<Exclude<DoorReward, 'boss'>, number> = { shards: 35, heal: 25, facet: 25, elite: 15, shop: 20 };
 
-export interface DoorInput { nextRoomIsBoss: boolean; hp01: number; rank: number }
+export interface DoorInput { nextRoomIsBoss: boolean; hp01: number; rank: number; nextRoom?: number }
 
-/** 2 двери (30 % — 3), без повторов; лечение весит больше при низком HP; элита не раньше Ранга 1. */
+/** 2 двери (30 % — 3), без повторов; лечение весит больше при низком HP; элита не раньше Ранга 1; Торговец не раньше комнаты shop.fromRoom. */
 export function offerDoors(rng: Rng, input: DoorInput): DoorReward[] {
   if (input.nextRoomIsBoss) return ['boss'];
   const count = rng.next() < 0.3 ? 3 : 2;
@@ -25,6 +28,7 @@ export function offerDoors(rng: Rng, input: DoorInput): DoorReward[] {
   if (input.hp01 < 0.4) pool.heal *= 2.5;
   if (input.hp01 > 0.9) pool.heal *= 0.3;
   if (input.rank < 1) delete pool.elite;
+  if ((input.nextRoom ?? Infinity) < F.shop.fromRoom) delete pool.shop;
   const out: DoorReward[] = [];
   while (out.length < count && Object.keys(pool).length) {
     const pick = rng.pick<DoorReward>(pool);

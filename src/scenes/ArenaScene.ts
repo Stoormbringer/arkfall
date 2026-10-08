@@ -14,8 +14,11 @@ import { RunState } from '../run/RunState';
 import { offerFacets, offerStartFacets } from '../run/facetOffer';
 import { DOORS, ELITE_ROOM, HEAL_DOOR_HP, offerDoors, SHARDS_DOOR_BONUS, type DoorReward } from '../run/doors';
 import { ITEMS, keepOnDeath, rollItem } from '../run/loot';
+import { goldForBoss, goldForEliteRoom, goldForMob, Shop } from '../run/shop';
+import { echoForBoss, echoForEliteRoom, echoRunTotal } from '../meta/echo';
 import { assignKeys, Barrier, createSkill, type Battlefield, type Skill, type SkillView } from '../skills/skills';
 import { loadProgress as loadP } from '../meta/Progress';
+import { clearRun, saveRun } from '../meta/RunSave';
 
 export interface ArenaSnapshot {
   act: number; roomInAct: number; roomsPerAct: number; acts: number;
@@ -26,7 +29,7 @@ export interface ArenaSnapshot {
   tier: number; room: number; seed: number; kills: number; alive: number;
   cleared: boolean; dead: boolean; killer: string;
   hp: number; maxHp: number; dodgeCharges: number; dodgeMax: number; dodge01: number;
-  rhythm: number; rank: number; shards: number; nextRankAt: number;
+  rhythm: number; rank: number; shards: number; nextRankAt: number; gold: number; echo: number;
   skills: SkillView[]; facets: string[]; xp: number; hasRhythm: boolean; backpack: string[]; toast: string;
   ttkSamples: { role: string; sec: number; hits: number }[];
 }
@@ -55,8 +58,10 @@ export class ArenaScene extends Phaser.Scene {
   private choosing = false;
   private currentOffer: string[] = [];
   private overlaySince = 0;
-  private overlayData: { key: 'facet' | 'door'; data: object } | null = null;
+  private overlayData: { key: 'facet' | 'door' | 'shop'; data: object } | null = null;
   private doorPending = false;
+  private shopPending = false;
+  private shop: Shop | null = null;
   private waveStarted = false;
   private toast = '';
   private boss: Boss | null = null;
@@ -70,16 +75,19 @@ export class ArenaScene extends Phaser.Scene {
       const q = new URLSearchParams(location.search);
       const p = loadP();
       const skills = q.get('skills')?.split(',') ?? p.skills; // ?skills=dash_cut,spark — для тестов
-      this.run = new RunState(Number(q.get('tier') ?? 1), Number(q.get('seed') ?? Date.now() % 1_000_000), skills, Object.values(p.equipped));
+      this.run = new RunState(Number(q.get('tier') ?? 1), Number(q.get('seed') ?? Date.now() % 1_000_000), skills, p.equipped);
       this.run.room = Number(q.get('room') ?? 1);
     }
     this.rng = new Rng(this.run.seed * 31 + this.run.room);
     this.advancing = false; this.pendingSpawns = 0; this.cleared = false; this.dead = false; this.killer = ''; this.choosing = false;
     this.zones = [];
-    this.boss = null; this.finished = false; this.doorPending = false; this.waveStarted = false;
+    this.boss = null; this.finished = false; this.doorPending = false; this.waveStarted = false; this.shopPending = false; this.shop = null;
   }
 
   get isEliteRoom() { return this.run.nextDoor === 'elite'; }
+
+  /** Прямой вход по URL — тестовый режим, не трогаем сохранения */
+  get isTestRun() { return new URLSearchParams(location.search).has('tier'); }
 
   get isBossRoom() { return this.run.room % RUN.roomsPerAct === 0; }
   get isLastRoom() { return this.run.room >= RUN.acts * RUN.roomsPerAct; }
@@ -125,9 +133,11 @@ export class ArenaScene extends Phaser.Scene {
     for (const id of this.run.skills) { const s = createSkill(id, this, this.player, this.run.mods, field); if (s) this.skills.push(s); }
     assignKeys(this.skills);
 
-    this.physics.add.overlap(this.playerBullets, this.enemies, (b, en) => {
-      const bullet = b as PlayerBullet, e = en as Enemy;
-      if (!bullet.active || !e.active) return;
+    this.physics.add.overlap(this.playerBullets, this.enemies, (a, b) => {
+      // порядок аргументов у Phaser не гарантирован — определяем по типу
+      const bullet = (a instanceof Projectile ? a : b) as PlayerBullet;
+      const e = (a instanceof Enemy ? a : b) as Enemy;
+      if (!(bullet instanceof Projectile) || !(e instanceof Enemy) || !bullet.active || !e.active) return;
       const x = bullet.x, y = bullet.y, cb = bullet.onHit;
       bullet.onHit = undefined;
       bullet.kill();
@@ -135,9 +145,9 @@ export class ArenaScene extends Phaser.Scene {
       cb?.(e, x, y);
     });
 
-    this.physics.add.overlap(this.player, this.bullets, (_p, b) => {
-      const bullet = b as Projectile;
-      if (!bullet.active) return;
+    this.physics.add.overlap(this.player, this.bullets, (a, b) => {
+      const bullet = (a instanceof Projectile ? a : b) as Projectile;
+      if (!(bullet instanceof Projectile) || !bullet.active) return;
       bullet.kill();
       this.hitPlayer(bullet.damage, bullet.source);
     });
@@ -153,8 +163,18 @@ export class ArenaScene extends Phaser.Scene {
     const onReroll = () => this.onFacetReroll();
     const onResume = () => { this.scene.resume(); this.emit(); };
     const onDoor = (r: DoorReward) => this.onDoorChosen(r);
-    this.game.events.on('facet-chosen', onChosen).on('facet-reroll', onReroll).on('resume-arena', onResume).on('door-chosen', onDoor);
-    this.events.once('shutdown', () => this.game.events.off('facet-chosen', onChosen).off('facet-reroll', onReroll).off('resume-arena', onResume).off('door-chosen', onDoor));
+    const onGear = () => { this.scene.launch('gear', { run: this.run }); };
+    const onGearClosed = () => { this.applyModsToPlayer(); this.scene.resume(); this.emit(); };
+    const onExit = () => this.exitToHub();
+    const onShopHeal = (hp: number) => { this.player.heal(hp); this.run.hp = this.player.hp; this.emit(); };
+    const onShopClosed = () => this.onShopClosed();
+    this.game.events.on('facet-chosen', onChosen).on('facet-reroll', onReroll).on('resume-arena', onResume).on('door-chosen', onDoor)
+      .on('open-gear', onGear).on('gear-closed', onGearClosed).on('exit-to-hub', onExit).on('shop-heal', onShopHeal).on('shop-closed', onShopClosed);
+    this.events.once('shutdown', () => this.game.events.off('facet-chosen', onChosen).off('facet-reroll', onReroll).off('resume-arena', onResume).off('door-chosen', onDoor)
+      .off('open-gear', onGear).off('gear-closed', onGearClosed).off('exit-to-hub', onExit).off('shop-heal', onShopHeal).off('shop-closed', onShopClosed));
+
+    // Контрольная точка: начало каждой комнаты (GDD §5.5)
+    if (!this.isTestRun) saveRun(this.run.toSave());
 
     // Эффект двери «Передышка» — на входе
     if (this.run.nextDoor === 'heal') this.player.heal(HEAL_DOOR_HP);
@@ -185,7 +205,7 @@ export class ArenaScene extends Phaser.Scene {
 
   update(_t: number, deltaMs: number) {
     if (this.dead || this.finished) return;
-    if (this.choosing || this.doorPending) {
+    if (this.choosing || this.doorPending || this.shopPending) {
       // сторож: оверлей запрошен, но так и не появился (и арена не на паузе) — перезапускаем именно его
       const o = this.overlayData;
       if (o && !this.scene.isActive(o.key) && !this.scene.isPaused() && this.time.now - this.overlaySince > 1000) {
@@ -251,10 +271,20 @@ export class ArenaScene extends Phaser.Scene {
       this.run.xp += Math.round((e.isBoss ? xpBoss(this.run.tier, this.run.room) : xpMob(this.run.tier, this.run.room)) * this.run.mods.xpMult);
       if (e.firstHitAt !== null && !e.isBoss) this.run.ttkSamples.push({ role: e.id, sec: (this.time.now - e.firstHitAt) / 1000, hits: e.hitsTaken });
       this.run.addShards(e.isBoss ? F.shards.boss : F.shards.mob);
-      if (e.isBoss) this.boss = null;
+      if (e.isBoss) { this.boss = null; this.run.addEcho(echoForBoss(Math.ceil(this.run.room / RUN.roomsPerAct), this.run.tier)); }
       if (this.run.mods.healPerKill) this.player.heal(this.run.mods.healPerKill);
+      // Золото (GDD §8.2): падает сразу в кошелёк забега, без подбора с пола
+      const gold = e.isBoss ? goldForBoss(this.run.tier) : goldForMob(this.rng, this.run.tier, this.run.room);
+      this.run.addGold(gold);
+      this.floatText(e.x, e.y - 14, `+${gold}`, '#f0c75e');
     }
     return killed;
+  }
+
+  /** Всплывающая цифра над точкой (золото, позже — урон) */
+  private floatText(x: number, y: number, text: string, color: string) {
+    const t = this.add.text(x, y, text, { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: '13px', color }).setOrigin(0.5).setDepth(15);
+    this.tweens.add({ targets: t, y: y - 28, alpha: 0, duration: 700, ease: 'Quad.Out', onComplete: () => t.destroy() });
   }
 
   private resolveMelee(s: { angle: number; radius: number; arcRad: number; damage: number; knockback: number }) {
@@ -388,7 +418,8 @@ export class ArenaScene extends Phaser.Scene {
     switch (this.run.nextDoor) {
       case 'shards': this.run.addShards(SHARDS_DOOR_BONUS); break;
       case 'facet': this.run.addOffer(`Награда: ${DOORS.facet.name}`); break;
-      case 'elite': this.run.addShards(ELITE_ROOM.shardsBonus); this.run.addOffer(`Награда: ${DOORS.elite.name}`); break;
+      case 'elite': this.run.addShards(ELITE_ROOM.shardsBonus); this.run.addGold(goldForEliteRoom(this.run.tier)); this.run.addEcho(echoForEliteRoom(this.run.tier)); this.run.addOffer(`Награда: ${DOORS.elite.name}`); break;
+      case 'shop': this.shopPending = true; break;
     }
     this.run.nextDoor = null;
     if (this.isLastRoom) { this.time.delayedCall(900, () => this.endRun(true)); return; }
@@ -406,10 +437,16 @@ export class ArenaScene extends Phaser.Scene {
       this.openOverlay('facet', { offer: this.currentOffer, rerollsLeft: this.run.rerollsLeft, rank: this.run.rank, title: `${reason} — выбери Руну`, more: this.run.pendingOffers - 1 });
       return;
     }
+    if (this.shopPending && !this.shop) {
+      this.player.setVelocity(0, 0);
+      this.shop = new Shop(this.rng, this.run);
+      this.openOverlay('shop', { shop: this.shop, hp: this.player.hp, maxHp: this.player.maxHp });
+      return;
+    }
     if (!this.doorPending && this.run.nextDoor === null) {
       this.doorPending = true;
       const nextRoom = this.run.room + 1;
-      const doors = offerDoors(this.rng, { nextRoomIsBoss: nextRoom % RUN.roomsPerAct === 0, hp01: this.player.hp / this.player.maxHp, rank: this.run.rank });
+      const doors = offerDoors(this.rng, { nextRoomIsBoss: nextRoom % RUN.roomsPerAct === 0, hp01: this.player.hp / this.player.maxHp, rank: this.run.rank, nextRoom });
       this.openOverlay('door', { doors });
       return;
     }
@@ -418,7 +455,7 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   /** Единая точка открытия оверлея: сцена поверх + пауза арены (оба — в очередь менеджера сцен) */
-  private openOverlay(key: 'facet' | 'door', data: object) {
+  private openOverlay(key: 'facet' | 'door' | 'shop', data: object) {
     if (this.scene.isActive(key)) this.scene.stop(key);
     this.overlayData = { key, data };
     this.overlaySince = this.time.now;
@@ -440,24 +477,45 @@ export class ArenaScene extends Phaser.Scene {
     this.time.delayedCall(120, () => { this.run.onRoomAdvance(); this.scene.restart({ run: this.run }); });
   }
 
+  private onShopClosed() {
+    if (!this.shopPending) return;
+    this.closeOverlay();
+    this.shopPending = false;
+    this.shop = null;
+    this.run.hp = this.player.hp;
+    this.time.delayedCall(150, () => this.nextStep());
+  }
+
+  /** Пересчёт производных характеристик игрока после смены модов (Руна, экипировка) */
+  private applyModsToPlayer() {
+    const oldMax = this.player.maxHp;
+    this.player.maxHp = Math.max(1, 100 + this.run.mods.maxHpDelta);
+    this.player.hp = Math.min(this.player.hp + Math.max(0, this.player.maxHp - oldMax), this.player.maxHp);
+    this.player.dodgeMax = 1 + this.run.mods.dodgeChargesBonus;
+    this.player.dodgeCharges = Math.min(this.player.dodgeCharges, this.player.dodgeMax);
+    this.run.hp = this.player.hp;
+  }
+
+  private exitToHub() {
+    if (!this.isTestRun) saveRun(this.run.toSave());
+    for (const k of ['hud', 'facet', 'door', 'gear', 'shop']) if (this.scene.isActive(k)) this.scene.stop(k);
+    this.scene.stop();
+    this.scene.start('title');
+  }
+
   private onFacetChosen(id: string) {
     if (!this.choosing) return;
     this.closeOverlay();
     const wasStart = this.run.rank === 0 && this.run.facets.length === 0;
     this.run.takeFacet(id);
     this.choosing = false;
+    this.applyModsToPlayer();
     if (wasStart) {
-      this.player.maxHp = Math.max(1, 100 + this.run.mods.maxHpDelta);
-      this.player.hp = Math.min(this.player.hp, this.player.maxHp);
-      this.player.dodgeMax = 1 + this.run.mods.dodgeChargesBonus;
       this.player.dodgeCharges = this.player.dodgeMax;
+      if (!this.isTestRun) saveRun(this.run.toSave());
       this.roomIntro(() => this.spawnWave());
       return;
     }
-    this.player.maxHp = Math.max(1, 100 + this.run.mods.maxHpDelta);
-    this.player.hp = Math.min(this.player.hp, this.player.maxHp);
-    this.player.dodgeMax = 1 + this.run.mods.dodgeChargesBonus;
-    this.run.hp = this.player.hp;
     this.time.delayedCall(200, () => this.nextStep());
   }
 
@@ -480,7 +538,13 @@ export class ArenaScene extends Phaser.Scene {
     this.finished = true;
     const before = loadProgress();
     const loot = won ? this.run.backpack : keepOnDeath(this.run.backpack);
-    const after = recordRun(before, this.run.tier, this.run.room, won, this.run.xp, loot);
+    if (!this.isTestRun) clearRun();
+    // Надетое из рюкзака, что не доехало домой, снимается
+    let p0 = before;
+    for (const [slot, id] of Object.entries(this.run.equipped)) {
+      if (id && !before.inventory.includes(id) && !loot.includes(id) && p0.equipped[slot as keyof typeof p0.equipped] === id) p0 = { ...p0, equipped: { ...p0.equipped, [slot]: undefined } };
+    }
+    const after = recordRun(p0, this.run.tier, this.run.room, won, this.run.xp, loot, echoRunTotal(this.run.echo, won));
     this.time.delayedCall(won ? 400 : 1200, () =>
       this.scene.launch('summary', { run: this.run, won, killer: this.killer, progress: after, unlockedNew: after.unlockedTier > before.unlockedTier, loot }));
   }
@@ -494,7 +558,7 @@ export class ArenaScene extends Phaser.Scene {
       tier: this.run.tier, room: this.run.room, seed: this.run.seed, kills: this.run.kills,
       alive: this.enemies.countActive(true), cleared: this.cleared, dead: this.dead, killer: this.killer,
       hp: this.player.hp, maxHp: this.player.maxHp, dodgeCharges: this.player.dodgeCharges, dodgeMax: this.player.dodgeMax, dodge01: this.player.dodgeCooldown01,
-      rhythm: this.player.rhythmStacks, rank: this.run.rank, shards: this.run.shards, nextRankAt: this.run.nextRankAt,
+      rhythm: this.player.rhythmStacks, rank: this.run.rank, shards: this.run.shards, nextRankAt: this.run.nextRankAt, gold: this.run.gold, echo: this.run.echo,
       skills: this.skills.map((s) => s.view()), facets: this.run.facets, xp: this.run.xp, hasRhythm: this.player.hasRhythm, backpack: this.run.backpack, toast: this.toast, ttkSamples: this.run.ttkSamples,
     };
     this.game.events.emit('arena-state', snap);

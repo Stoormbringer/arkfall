@@ -141,5 +141,54 @@
     "epicPerTier": 2,
     "rarePerTier": 2,
     "keepOnDeath": "best_half"
+  },
+  "gold": {
+    "_comment": "GDD §8.2: моб 1–2 × (1+0,03R), сгорает в конце забега. Цены лавки масштабируются тем же множителем Тира.",
+    "mobMin": 1,
+    "mobMax": 2,
+    "roomGrowth": 0.03,
+    "bossBonus": 60,
+    "eliteRoomBonus": 25,
+    "tierStep": 0.3
+  },
+  "shop": {
+    "_comment": "Лавка Торговца (дверь). Цены — Тир 1, умножаются на goldTierMult.",
+    "fromRoom": 2,
+    "itemSlots": 3,
+    "itemPrice": {
+      "common": 60,
+      "rare": 120,
+      "epic": 240
+    },
+    "healHp": 40,
+    "healPrice": 50,
+    "rerollPrice": 70,
+    "restockPrice": 40,
+    "restockGrowth": 1.5,
+    "sellRatio": 0.4
+  },
+  "echo": {
+    "_comment": "GDD §8.1–8.3: постоянная валюта. Доход ×(1+0,4(T−1)); цены хаба привязаны к открытому Тиру игрока.",
+    "eliteRoom": 5,
+    "bossByAct": [
+      40,
+      50,
+      60
+    ],
+    "tierStep": 0.4,
+    "winBonus": 0.3,
+    "skillReset": {
+      "base": 50,
+      "scaleFromLevel": 100
+    },
+    "hubShop": {
+      "itemSlots": 3,
+      "itemPrice": {
+        "common": 60,
+        "rare": 150,
+        "epic": 400
+      },
+      "rotateEveryRuns": 3
+    }
   }
 }

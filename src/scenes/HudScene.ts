@@ -3,6 +3,9 @@ import ENEMIES from '../data/enemies.json';
 import { ttkTarget } from '../core/formulas';
 import { facetDef } from '../run/mods';
 import { ITEMS } from '../run/loot';
+import type { FacetRarity } from '../data/types';
+
+const RARITY_HEX: Record<FacetRarity, number> = { common: 0x9aa4b8, rare: 0x6fb7ff, epic: 0xd38bff };
 import type { ArenaSnapshot } from './ArenaScene';
 
 const median = (xs: number[]) => {
@@ -24,7 +27,11 @@ export class HudScene extends Phaser.Scene {
   private banner!: Phaser.GameObjects.Text;
   private bossText!: Phaser.GameObjects.Text;
   private toast!: Phaser.GameObjects.Text;
-  private bagText!: Phaser.GameObjects.Text;
+  private tooltip!: Phaser.GameObjects.Text;
+  private runeIcons!: Phaser.GameObjects.Container;
+  private bagIcons!: Phaser.GameObjects.Container;
+  private runeKey = '';
+  private bagKey = '';
 
   constructor() { super('hud'); }
 
@@ -33,17 +40,55 @@ export class HudScene extends Phaser.Scene {
     this.bars = this.add.graphics();
     this.info = this.add.text(24, 48, '', style);
     this.skillsText = this.add.text(24, 72, '', { ...style, color: '#c9d1e0' });
-    this.facetsText = this.add.text(24, 696, '', { ...style, fontSize: '12px', color: '#9aa4b8' }).setOrigin(0, 1);
+    this.facetsText = this.add.text(24, 96, '', { ...style, fontSize: '11px', color: '#6f7890' });
+    this.runeIcons = this.add.container(24, 112);
+    this.bagIcons = this.add.container(1256, 690);
+    this.tooltip = this.add.text(0, 0, '', { ...style, fontSize: '12px', backgroundColor: '#0b0d12ee', padding: { x: 8, y: 6 }, wordWrap: { width: 320 } }).setDepth(50).setVisible(false);
     this.debug = this.add.text(1256, 24, '', { ...style, color: '#9aa4b8', align: 'right' }).setOrigin(1, 0);
-    this.toast = this.add.text(640, 120, '', { ...style, fontSize: '16px', color: '#f0c75e', backgroundColor: '#0b0d12cc', padding: { x: 10, y: 6 } }).setOrigin(0.5);
-    this.bagText = this.add.text(1256, 696, '', { ...style, fontSize: '12px', color: '#9aa4b8', align: 'right' }).setOrigin(1, 1);
+    this.toast = this.add.text(640, 160, '', { ...style, fontSize: '16px', color: '#f0c75e', backgroundColor: '#0b0d12cc', padding: { x: 10, y: 6 } }).setOrigin(0.5);
     this.bossText = this.add.text(640, 652, '', { ...style, fontSize: '13px', color: '#e0a62f' }).setOrigin(0.5, 1);
     this.banner = this.add.text(640, 330, '', { ...style, fontSize: '28px', align: 'center' }).setOrigin(0.5);
-    this.add.text(640, 696, 'WASD — движение · ЛКМ — удар · ПКМ — рывок · Q — разряд · Space — уклонение · Esc/P — пауза', { ...style, color: '#6f7890', fontSize: '12px' }).setOrigin(0.5, 1);
+    this.add.text(640, 696, 'WASD — движение · ЛКМ — удар · ПКМ — рывок · Q — разряд · Space — уклонение · Esc — меню', { ...style, color: '#6f7890', fontSize: '12px' }).setOrigin(0.5, 1);
     // Подписка на событие игры снимается при остановке сцены — иначе «призрачный» HUD пишет в уничтоженные объекты
     const handler = (s: ArenaSnapshot) => { if (this.scene.isActive()) this.render(s); };
     this.game.events.on('arena-state', handler);
     this.events.once('shutdown', () => this.game.events.off('arena-state', handler));
+  }
+
+  /** Значки Рун (слева сверху) и рюкзака (справа снизу): перерисовываются только при изменении состава */
+  private renderIcons(s: ArenaSnapshot) {
+    const rk = s.facets.join(',');
+    if (rk !== this.runeKey) {
+      this.runeKey = rk;
+      this.runeIcons.removeAll(true);
+      s.facets.forEach((id, i) => {
+        const def = facetDef(id);
+        const x = (i % 10) * 30, y = Math.floor(i / 10) * 30;
+        const box = this.add.rectangle(x + 12, y + 12, 24, 24, 0x161a23).setStrokeStyle(2, RARITY_HEX[def.rarity]).setInteractive({ useHandCursor: true });
+        const letter = this.add.text(x + 12, y + 12, def.name[0], { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: '13px', color: '#e8e4d8' }).setOrigin(0.5);
+        box.on('pointerover', () => this.showTip(24 + x, 112 + y + 30, `${def.name} · ${def.rarity === 'common' ? 'обычная' : def.rarity === 'rare' ? 'редкая' : 'эпическая'}\n${def.effect}`));
+        box.on('pointerout', () => this.tooltip.setVisible(false));
+        this.runeIcons.add([box, letter]);
+      });
+    }
+    const bk = s.backpack.join(',');
+    if (bk !== this.bagKey) {
+      this.bagKey = bk;
+      this.bagIcons.removeAll(true);
+      s.backpack.forEach((id, i) => {
+        const item = ITEMS[id];
+        const x = -(i % 10) * 30, y = -Math.floor(i / 10) * 30;
+        const box = this.add.rectangle(x - 12, y - 12, 24, 24, 0x161a23).setStrokeStyle(2, RARITY_HEX[item.rarity]).setInteractive({ useHandCursor: true });
+        const letter = this.add.text(x - 12, y - 12, item.name[0], { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: '13px', color: '#f0c75e' }).setOrigin(0.5);
+        box.on('pointerover', () => this.showTip(1256 + x - 340, 690 + y - 70, `${item.name}\n${item.text}\nв рюкзаке — надеть можно в меню паузы (Esc → Снаряжение)`));
+        box.on('pointerout', () => this.tooltip.setVisible(false));
+        this.bagIcons.add([box, letter]);
+      });
+    }
+  }
+
+  private showTip(x: number, y: number, text: string) {
+    this.tooltip.setText(text).setPosition(Math.min(x, 1280 - 340), Math.max(8, y)).setVisible(true);
   }
 
   private render(s: ArenaSnapshot) {
@@ -67,13 +112,13 @@ export class HudScene extends Phaser.Scene {
       g.fillStyle(0xe0a62f, 1).fillRect(340, 660, 600 * Math.max(0, s.boss.hp01), 14);
     }
     this.bossText.setText(s.boss ? `${s.boss.name} · фаза ${s.boss.phase}` : '');
-    this.info.setText(`Тир ${s.tier} · Акт ${s.act}/${s.acts} · Комната ${s.roomInAct}/${s.roomsPerAct}${s.roomTag ? ' [' + s.roomTag + ']' : ''} · Враги ${s.alive} · Убито ${s.kills}      Ранг ${s.rank}  ${Math.floor(s.shards)}/${Math.ceil(s.nextRankAt)} осколков · опыт +${s.xp}`);
+    this.info.setText(`Тир ${s.tier} · Акт ${s.act}/${s.acts} · Комната ${s.roomInAct}/${s.roomsPerAct}${s.roomTag ? ' [' + s.roomTag + ']' : ''} · Враги ${s.alive} · Убито ${s.kills}      Ранг ${s.rank}  ${Math.floor(s.shards)}/${Math.ceil(s.nextRankAt)} осколков · ${s.gold} золота · Эхо +${s.echo} · опыт +${s.xp}`);
     const sk = s.skills.map((v) => `${v.key} ${v.name} ${v.charges !== undefined ? '●'.repeat(v.charges) + '○'.repeat((v.maxCharges ?? 0) - v.charges) : v.ready01 >= 1 ? '✓' : Math.round(v.ready01 * 100) + '%'}`);
     if (s.rhythm > 0 || s.hasRhythm) sk.push(`Ритм ${'|'.repeat(s.rhythm)}${'.'.repeat(5 - s.rhythm)}`);
     this.skillsText.setText(sk.join('    '));
-    this.facetsText.setText(s.facets.length ? 'Руны: ' + s.facets.map((id) => facetDef(id).name).join(' · ') : '');
+    this.facetsText.setText(s.facets.length ? 'Руны' : '');
     this.toast.setText(s.toast);
-    this.bagText.setText(s.backpack.length ? `Рюкзак: ${s.backpack.map((id) => ITEMS[id].name).join(' · ')}` : '');
+    this.renderIcons(s);
 
     const by = (r: string) => s.ttkSamples.filter((x) => x.role === r);
     const common = s.ttkSamples.filter((x) => x.role !== 'tank');

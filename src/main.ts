@@ -10,6 +10,8 @@ import { SummaryScene } from './scenes/SummaryScene';
 import { SkillChoiceScene } from './scenes/SkillChoiceScene';
 import { DoorScene } from './scenes/DoorScene';
 import { GearScene } from './scenes/GearScene';
+import { ShopScene } from './scenes/ShopScene';
+import { HubShopScene } from './scenes/HubShopScene';
 
 const g = globalThis as unknown as { __arkfallError?: string };
 function showError(msg: string) {
@@ -39,5 +41,5 @@ new Phaser.Game({
   pixelArt: false,
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   physics: { default: 'arcade', arcade: { debug: new URLSearchParams(location.search).has('debug') } },
-  scene: [BootScene, TitleScene, SkillChoiceScene, GearScene, ArenaScene, HudScene, FacetScene, DoorScene, PauseScene, SummaryScene],
+  scene: [BootScene, TitleScene, SkillChoiceScene, GearScene, ArenaScene, HudScene, FacetScene, DoorScene, PauseScene, SummaryScene, ShopScene, HubShopScene],
 });

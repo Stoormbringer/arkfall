@@ -4,6 +4,7 @@ import type { RunState } from '../run/RunState';
 import type { Progress } from '../meta/Progress';
 import { levelFromXp } from '../meta/Level';
 import { ITEMS } from '../run/loot';
+import { echoRunTotal } from '../meta/echo';
 
 export interface SummaryData { run: RunState; won: boolean; killer: string; progress: Progress; unlockedNew: boolean; loot: string[] }
 
@@ -24,6 +25,7 @@ export class SummaryScene extends Phaser.Scene {
       `Тир ${d.run.tier} · сид ${d.run.seed}`,
       `Комнат пройдено: ${d.won ? d.run.room : d.run.room - 1} · Убито: ${d.run.kills} · Ранг: ${d.run.rank}`,
       `TTK обычных (медиана): ${med.toFixed(2)} с`,
+      `Золото: собрано ${d.run.goldEarned}, сгорело ${d.run.gold} · Эхо: +${echoRunTotal(d.run.echo, d.won)}${d.won ? ' (с бонусом +30 %)' : ''} → ${d.progress.echo}`,
       `Опыт: +${Math.round(d.won ? d.run.xp * 1.3 : d.run.xp)}${d.won ? ' (с бонусом завершения +30 %)' : ''} → уровень ${levelFromXp(d.progress.xp).level}` + (d.progress.pendingMilestones.length ? `  · новый скилл ждёт в хабе` : ''),
       '',
       'Руны забега:',
@@ -36,7 +38,7 @@ export class SummaryScene extends Phaser.Scene {
 
     this.add.text(640, 640, 'Enter или клик — в хаб', { ...mono, fontSize: '18px' }).setOrigin(0.5);
     const toHub = () => {
-      for (const k of ['arena', 'hud', 'facet', 'door', 'pause']) if (this.scene.isActive(k) || this.scene.isPaused(k)) this.scene.stop(k);
+      for (const k of ['arena', 'hud', 'facet', 'door', 'pause', 'shop']) if (this.scene.isActive(k) || this.scene.isPaused(k)) this.scene.stop(k);
       this.scene.start('title');
     };
     this.input.keyboard!.once('keydown-ENTER', toHub);

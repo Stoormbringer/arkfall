@@ -4,6 +4,8 @@ import { BootScene } from '../../src/scenes/BootScene';
 import { DoorScene } from '../../src/scenes/DoorScene';
 import { FacetScene } from '../../src/scenes/FacetScene';
 import { GearScene } from '../../src/scenes/GearScene';
+import { ShopScene } from '../../src/scenes/ShopScene';
+import { HubShopScene } from '../../src/scenes/HubShopScene';
 import { HudScene } from '../../src/scenes/HudScene';
 import { PauseScene } from '../../src/scenes/PauseScene';
 import { SkillChoiceScene } from '../../src/scenes/SkillChoiceScene';
@@ -25,7 +27,7 @@ export class Sim {
       type: Phaser.HEADLESS, width: 1280, height: 720, parent: undefined,
       audio: { noAudio: true },
       physics: { default: 'arcade' },
-      scene: [BootScene, TitleScene, SkillChoiceScene, GearScene, ArenaScene, HudScene, FacetScene, DoorScene, PauseScene, SummaryScene],
+      scene: [BootScene, TitleScene, SkillChoiceScene, GearScene, ArenaScene, HudScene, FacetScene, DoorScene, PauseScene, SummaryScene, ShopScene, HubShopScene],
     });
     await new Promise<void>((res) => sim.game.events.once('ready', () => res()));
     sim.game.loop.stop();
@@ -51,10 +53,20 @@ export class Sim {
   get snap(): ArenaSnapshot | undefined { return (globalThis as unknown as { __arkfall?: ArenaSnapshot }).__arkfall; }
   active(key: string) { return this.game.scene.isActive(key); }
   paused(key: string) { return this.game.scene.isPaused(key); }
-  destroy() { this.game.destroy(true); }
+  /** Phaser откладывает уничтожение до следующего кадра — в ручном режиме доводим его до конца сразу */
+  destroy() {
+    this.game.destroy(true);
+    (this.game as unknown as { runDestroy: () => void }).runDestroy();
+  }
 }
 const dt = () => 1000 / 60;
 export const KEYS = { ONE: 49, TWO: 50, THREE: 51, ENTER: 13, R: 82, P: 80, ESC: 27 };
+
+/** Закрыть накопленные выборы Рун и лавку Торговца (если открылась) — до двери */
+export function passOverlays(sim: Sim) {
+  for (let i = 0; i < 5 && sim.active('facet'); i++) { sim.key('Digit1', KEYS.ONE); sim.step(400); }
+  if (sim.active('shop')) { sim.key('Escape', KEYS.ESC); sim.step(400); }
+}
 
 /** Убить всех живых врагов через единую точку урона арены (как будто игрок всех ударил) */
 export function killAll(sim: Sim) {

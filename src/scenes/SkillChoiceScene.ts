@@ -23,7 +23,7 @@ export class SkillChoiceScene extends Phaser.Scene {
 
     this.add.rectangle(640, 360, 1280, 720, 0x0b0d12, 1);
     this.add.text(640, 110, `Уровень ${milestone} — новый Основной скилл`, { ...mono, fontSize: '28px' }).setOrigin(0.5);
-    this.add.text(640, 148, 'Постоянный выбор. Сброс — бесплатно до 100 уровня (появится в хабе позже). Клик или 1 / 2 / 3', { ...mono, fontSize: '13px', color: '#6f7890' }).setOrigin(0.5);
+    this.add.text(640, 148, 'Постоянный выбор. Сброс — в Лавке Ковчега за Эхо. Клик или 1 / 2 / 3', { ...mono, fontSize: '13px', color: '#6f7890' }).setOrigin(0.5);
 
     const cardW = 340, cardH = 360, gap = 40;
     const x0 = 640 - (cardW * 3 + gap * 2) / 2 + cardW / 2;
